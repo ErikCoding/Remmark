@@ -1,0 +1,9 @@
+.next
+node_modules
+dist
+out
+.env
+.env.local
+.vercel
+*.log
+firebase-debug.log
