@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!firebaseReady) {
       setLoading(false);
-      setError("Brakuje konfiguracji Firebase. Uzupełnij plik .env.local.");
+      setError("Brakuje konfiguracji Firebase. Lokalnie uzupełnij .env.local, a na Vercel dodaj Environment Variables i wykonaj ponowny deploy.");
       return;
     }
 
