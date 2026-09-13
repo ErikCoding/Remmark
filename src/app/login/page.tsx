@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { LockKeyhole, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
@@ -33,18 +34,18 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-paper px-4 py-10">
-      <section className="w-full max-w-sm rounded-lg border border-line bg-white p-5 shadow-soft">
-        <div className="mb-8 flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-600 text-xl font-bold text-white">R</span>
+    <main className="flex min-h-screen items-center justify-center px-4 py-10">
+      <section className="surface w-full max-w-md p-6 md:p-7">
+        <div className="mb-8 flex items-center gap-4">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ink text-2xl font-black text-white shadow-[0_18px_34px_rgba(18,24,38,0.22)]">R</span>
           <div>
-            <h1 className="text-xl font-bold text-ink">Remmark</h1>
-            <p className="text-sm text-muted">Zaloguj się do aplikacji</p>
+            <h1 className="text-2xl font-black text-ink">Remmark</h1>
+            <p className="mt-1 text-sm font-semibold text-muted">Prywatny panel logów budowy</p>
           </div>
         </div>
         <form className="space-y-4" onSubmit={handleSubmit}>
           {(error || authError) ? (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-danger">{error || authError}</p>
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-danger">{error || authError}</p>
           ) : null}
           <Field label="Email">
             <Input autoComplete="email" inputMode="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
@@ -52,7 +53,8 @@ export default function LoginPage() {
           <Field label="Hasło">
             <Input autoComplete="current-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
           </Field>
-          <Button disabled={loading} full>
+          <Button className="mt-2" disabled={loading} full>
+            {loading ? <LockKeyhole className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
             {loading ? "Logowanie..." : "Zaloguj się"}
           </Button>
         </form>

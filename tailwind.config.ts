@@ -5,13 +5,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#111827",
-        muted: "#6B7280",
-        line: "#E5E7EB",
-        paper: "#F8FAFC",
+        ink: "#121826",
+        muted: "#64748B",
+        line: "#DDE5EF",
+        paper: "#F4F7FB",
         brand: {
           50: "#EFF6FF",
           100: "#DBEAFE",
+          500: "#3B82F6",
           600: "#2563EB",
           700: "#1D4ED8",
           900: "#172554"

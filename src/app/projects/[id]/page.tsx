@@ -42,7 +42,7 @@ export default function ProjectDetailPage() {
       <div className="space-y-5">
         {project && editing ? <ProjectForm project={project} onSaved={() => setEditing(false)} /> : null}
         {project ? (
-          <section className="rounded-lg border border-line bg-white p-4">
+          <section className="surface-flat p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <Info label="Status" value={project.status === "active" ? "Aktywna" : project.status === "paused" ? "Wstrzymana" : "Zakończona"} />
               <Info label="Wizyty" value={String(logs.length)} />
@@ -59,7 +59,7 @@ export default function ProjectDetailPage() {
           </Link>
         </div>
         <section>
-          <h2 className="mb-3 text-lg font-bold text-ink">Logi budowy</h2>
+          <h2 className="mb-3 text-xl font-black text-ink">Logi budowy</h2>
           {logs.length === 0 ? <EmptyState title="Brak wpisów dla tej budowy" /> : null}
           <div className="space-y-3">
             {logs.map((log) => (
@@ -74,9 +74,9 @@ export default function ProjectDetailPage() {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-paper p-3">
-      <p className="text-xs font-semibold uppercase text-muted">{label}</p>
-      <p className="mt-1 font-bold text-ink">{value}</p>
+    <div className="rounded-xl bg-slate-50 p-3">
+      <p className="text-xs font-bold uppercase tracking-[0.06em] text-muted">{label}</p>
+      <p className="mt-1 font-black text-ink">{value}</p>
     </div>
   );
 }

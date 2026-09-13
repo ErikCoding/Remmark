@@ -122,9 +122,9 @@ export function LogForm({
           }}
         />
       ) : null}
-      <form className="space-y-4 rounded-lg border border-line bg-white p-4" onSubmit={handleSubmit}>
-        {message ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-success">{message}</p> : null}
-        {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-danger">{error}</p> : null}
+      <form className="surface-flat space-y-5 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] md:p-5" onSubmit={handleSubmit}>
+        {message ? <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-success">{message}</p> : null}
+        {error ? <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-danger">{error}</p> : null}
         <Field label="Budowa">
           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
             <Select value={projectId} onChange={(event) => setProjectId(event.target.value)} required>
@@ -152,7 +152,7 @@ export function LogForm({
             <Input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} required />
           </Field>
         </div>
-        <div className="rounded-lg bg-paper px-3 py-3 text-sm font-semibold text-ink">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-ink">
           Czas pracy: {durationMinutes > 0 ? formatDuration(durationMinutes) : "sprawdź godziny"}
         </div>
         <Field label="Co robiłeś?">

@@ -57,8 +57,8 @@ export function ProjectForm({
   }
 
   return (
-    <form className="space-y-4 rounded-lg border border-line bg-white p-4" onSubmit={handleSubmit}>
-      {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-danger">{error}</p> : null}
+    <form className="surface-flat space-y-4 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]" onSubmit={handleSubmit}>
+      {error ? <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-danger">{error}</p> : null}
       <div className={compact ? "space-y-4" : "grid gap-4 md:grid-cols-2"}>
         <Field label="Nazwa budowy">
           <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Amsterdam - Keizersgracht 52" />

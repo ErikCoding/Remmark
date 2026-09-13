@@ -46,7 +46,7 @@ export default function LogDetailPage() {
           </Button>
         }
       />
-      {error ? <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-danger">{error}</p> : null}
       {log ? <LogForm projects={projects} initialLog={log} /> : <p className="text-sm text-muted">Ładowanie wpisu...</p>}
     </AppShell>
   );

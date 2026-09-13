@@ -42,7 +42,7 @@ export default function ReportsPage() {
     <AppShell>
       <PageHeader title="Raporty" subtitle="Eksportuj zestawienie pracy dla klienta lub budowy." />
       <div className="space-y-5">
-        <section className="no-print grid gap-3 rounded-lg border border-line bg-white p-4 md:grid-cols-3">
+        <section className="no-print surface-flat grid gap-3 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] md:grid-cols-3">
           <Select value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>
             <option value="today">Dzisiaj</option>
             <option value="week">Ten tydzień</option>
@@ -88,7 +88,7 @@ export default function ReportsPage() {
             Drukuj
           </Button>
         </div>
-        <section className="rounded-lg border border-line bg-white p-5">
+        <section className="surface-flat p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <h2 className="text-2xl font-bold text-ink">Remmark</h2>
@@ -100,7 +100,7 @@ export default function ReportsPage() {
           <div className="space-y-7">
             {groups.map((group) => (
               <div key={group.project.id}>
-                <h3 className="text-lg font-bold text-ink">{group.project.name}</h3>
+                <h3 className="text-lg font-black text-ink">{group.project.name}</h3>
                 <p className="text-sm text-muted">{group.project.address}</p>
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full min-w-[620px] border-collapse text-sm">

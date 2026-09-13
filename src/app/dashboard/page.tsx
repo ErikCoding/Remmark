@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight, BriefcaseBusiness, CalendarDays, Clock3, Plus, TimerReset, type LucideIcon } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { PageHeader } from "@/components/app/page-header";
 import { LogCard } from "@/components/logs/log-card";
@@ -32,24 +33,37 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <PageHeader title="Dzień dobry" subtitle={`${profile?.name ?? "Remmark"} · ${formatLongDate(new Date())}`} />
-      <div className="space-y-6">
-        <Link href="/logs/new">
-          <Button className="min-h-16 text-base" full>
-            + Dodaj wpis z budowy
-          </Button>
-        </Link>
+      <div className="space-y-7">
+        <section className="surface overflow-hidden p-5 md:p-6">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="eyebrow">Najczęstsza akcja</p>
+              <h2 className="mt-2 text-2xl font-black leading-tight text-ink">Zapisz pracę z budowy</h2>
+              <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-muted">
+                Wybierz budowę, wpisz godziny i opis. Resztę aplikacja policzy za Ciebie.
+              </p>
+            </div>
+            <Link className="shrink-0" href="/logs/new">
+              <Button className="min-h-14 px-5 text-base" full>
+                <Plus className="h-5 w-5" />
+                Dodaj wpis
+              </Button>
+            </Link>
+          </div>
+        </section>
         {user ? <TimerPanel userId={user.uid} projects={projects.filter((project) => project.status === "active")} /> : null}
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Dzisiaj" value={formatDuration(stats.today)} />
-          <StatCard label="Ten tydzień" value={formatDuration(stats.week)} />
-          <StatCard label="Ten miesiąc" value={formatDuration(stats.month)} />
-          <StatCard label="Aktywne budowy" value={String(stats.activeProjects)} />
+          <StatCard icon={Clock3} label="Dzisiaj" value={formatDuration(stats.today)} />
+          <StatCard icon={CalendarDays} label="Ten tydzień" value={formatDuration(stats.week)} />
+          <StatCard icon={TimerReset} label="Ten miesiąc" value={formatDuration(stats.month)} />
+          <StatCard icon={BriefcaseBusiness} label="Aktywne budowy" value={String(stats.activeProjects)} />
         </section>
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-ink">Ostatnie wpisy</h2>
-            <Link className="text-sm font-semibold text-brand-700" href="/history">
+            <h2 className="text-xl font-black text-ink">Ostatnie wpisy</h2>
+            <Link className="inline-flex items-center gap-1 text-sm font-bold text-brand-700" href="/history">
               Historia
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
           {loading ? <SkeletonList /> : null}
@@ -67,11 +81,14 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-line bg-white p-4">
-      <p className="text-xs font-semibold uppercase text-muted">{label}</p>
-      <p className="mt-2 text-xl font-bold text-ink">{value}</p>
+    <div className="surface-flat p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-ink">
+        <Icon className="h-[18px] w-[18px]" />
+      </div>
+      <p className="mt-4 text-xs font-bold uppercase tracking-[0.06em] text-muted">{label}</p>
+      <p className="mt-1 text-2xl font-black text-ink">{value}</p>
     </div>
   );
 }

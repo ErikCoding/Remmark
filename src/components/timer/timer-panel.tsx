@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Play, Square, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, Textarea } from "@/components/ui/field";
 import { useActiveTimer } from "@/hooks/use-active-timer";
@@ -68,10 +69,16 @@ export function TimerPanel({ userId, projects, projectId }: { userId: string; pr
 
   if (timer) {
     return (
-      <form className="rounded-lg border border-brand-100 bg-brand-50 p-4" onSubmit={handleStop}>
-        <p className="text-sm font-semibold text-brand-700">Aktywna praca</p>
-        <p className="mt-1 text-lg font-bold text-ink">{currentProject?.name ?? "Budowa"}</p>
-        <p className="mt-1 text-sm text-muted">Start: {timer.startTime}</p>
+      <form className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-[0_14px_34px_rgba(22,128,60,0.08)]" onSubmit={handleStop}>
+        <p className="inline-flex items-center gap-2 text-sm font-black text-success">
+          <span className="h-2.5 w-2.5 rounded-full bg-success" />
+          Aktywna praca
+        </p>
+        <p className="mt-2 text-xl font-black text-ink">{currentProject?.name ?? "Budowa"}</p>
+        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-muted">
+          <Timer className="h-4 w-4" />
+          Start: {timer.startTime}
+        </p>
         <Textarea
           className="mt-4"
           value={description}
@@ -80,6 +87,7 @@ export function TimerPanel({ userId, projects, projectId }: { userId: string; pr
         />
         {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
         <Button className="mt-4" disabled={busy} full>
+          <Square className="h-4 w-4" />
           {busy ? "Zapisywanie..." : "Zakończ pracę"}
         </Button>
       </form>
@@ -87,9 +95,16 @@ export function TimerPanel({ userId, projects, projectId }: { userId: string; pr
   }
 
   return (
-    <div className="rounded-lg border border-line bg-white p-4">
-      <p className="font-bold text-ink">Timer pracy</p>
-      <p className="mt-1 text-sm text-muted">Rozpocznij pracę teraz, a wpis zostanie zapisany po zakończeniu.</p>
+    <div className="surface-flat p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-ink">
+          <Timer className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="font-black text-ink">Timer pracy</p>
+          <p className="mt-1 text-sm font-medium leading-5 text-muted">Rozpocznij pracę teraz, a wpis zostanie zapisany po zakończeniu.</p>
+        </div>
+      </div>
       {!projectId ? (
         <Select className="mt-4" value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)}>
           {projects.map((project) => (
@@ -101,6 +116,7 @@ export function TimerPanel({ userId, projects, projectId }: { userId: string; pr
       ) : null}
       {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
       <Button className="mt-4" disabled={busy || !selectedProjectId} onClick={handleStart} full>
+        <Play className="h-4 w-4" />
         {busy ? "Start..." : "Rozpocznij pracę"}
       </Button>
     </div>
