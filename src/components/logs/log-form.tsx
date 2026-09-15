@@ -147,7 +147,7 @@ export function LogForm({
         </FormStep>
 
         <FormStep icon={CalendarClock} title="Czas pracy" caption="Godziny przeliczają się automatycznie.">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3 [&>*]:min-w-0">
             <Field label="Data">
               <Input type="date" value={dateKey} onChange={(event) => setDateKey(event.target.value)} required />
             </Field>
@@ -174,7 +174,7 @@ export function LogForm({
               />
               <div className="flex flex-wrap gap-2">
                 {speech.supported ? (
-                  <Button type="button" variant="secondary" onClick={speech.start}>
+                  <Button className={speech.listening ? "border-brand-100 bg-brand-50 text-brand-700" : ""} type="button" variant="secondary" onClick={speech.start}>
                     <Mic className="h-4 w-4" />
                     {speech.listening ? "Słucham..." : "Mikrofon"}
                   </Button>
@@ -184,6 +184,7 @@ export function LogForm({
                   {translating ? "Tłumaczenie..." : "Przetłumacz na NL"}
                 </Button>
               </div>
+              {speech.listening ? <VoiceListeningIndicator /> : null}
             </div>
           </Field>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -200,6 +201,23 @@ export function LogForm({
           {saving ? "Zapisywanie..." : initialLog ? "Zapisz zmiany" : "Zapisz wpis"}
         </Button>
       </form>
+    </div>
+  );
+}
+
+function VoiceListeningIndicator() {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-3 py-2 text-sm font-bold text-brand-700">
+      <div className="flex h-7 items-center gap-1">
+        {[0, 1, 2, 3, 4].map((index) => (
+          <span
+            className="block h-5 w-1 rounded-full bg-brand-600 animate-[voice-wave_0.9s_ease-in-out_infinite]"
+            key={index}
+            style={{ animationDelay: `${index * 0.09}s` }}
+          />
+        ))}
+      </div>
+      <span>Dyktowanie aktywne. Mów spokojnie po polsku.</span>
     </div>
   );
 }

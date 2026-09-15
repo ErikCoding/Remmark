@@ -72,6 +72,19 @@ button {
   }
 }
 
+@keyframes voice-wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.55;
+  }
+
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
 @media print {
   .no-print {
     display: none !important;
