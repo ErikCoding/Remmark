@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, BriefcaseBusiness, CirclePlus, Home, UserRound } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, CirclePlus, Home, ShieldCheck, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { AuthGate } from "@/components/app/auth-gate";
 import { classNames } from "@/lib/utils/text";
@@ -51,11 +51,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               })}
             </nav>
             <div className="absolute inset-x-4 bottom-6 rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Tryb</p>
-              <p className="mt-1 text-sm font-bold text-ink">Prywatna aplikacja</p>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-success" />
+                <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Tryb prywatny</p>
+              </div>
+              <p className="mt-2 text-sm font-bold leading-5 text-ink">Dane dostępne tylko po zalogowaniu.</p>
             </div>
           </aside>
           <main className="min-w-0 px-4 py-5 md:px-8 md:py-8 lg:px-10">
+            <div className="mb-5 flex items-center justify-between rounded-2xl border border-white/80 bg-white/85 px-3 py-3 shadow-[0_12px_34px_rgba(15,23,42,0.06)] backdrop-blur md:hidden">
+              <Link className="flex items-center gap-3" href="/dashboard">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-ink text-base font-black text-white">R</span>
+                <span>
+                  <span className="block text-base font-black leading-tight text-ink">Remmark</span>
+                  <span className="block text-[11px] font-bold uppercase tracking-[0.08em] text-muted">Worklog</span>
+                </span>
+              </Link>
+              <Link className="rounded-2xl bg-brand-600 px-3 py-2 text-sm font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.18)]" href="/logs/new">
+                Nowy
+              </Link>
+            </div>
             <div className="mx-auto max-w-5xl">{children}</div>
           </main>
         </div>

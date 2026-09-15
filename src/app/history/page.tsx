@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { PageHeader } from "@/components/app/page-header";
 import { LogCard } from "@/components/logs/log-card";
@@ -34,29 +35,48 @@ export default function HistoryPage() {
     <AppShell>
       <PageHeader title="Historia" subtitle="Wyszukuj, filtruj i edytuj zapisane wpisy." />
       <div className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-4">
-          <Select value={preset} onChange={(event) => setPreset(event.target.value as RangePreset)}>
-            <option value="today">Dzisiaj</option>
-            <option value="week">Ten tydzień</option>
-            <option value="month">Ten miesiąc</option>
-            <option value="custom">Własny zakres</option>
-          </Select>
-          <Select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-            <option value="all">Wszystkie budowy</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
+        <div className="tool-panel space-y-3">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 text-muted" />
+            <p className="text-sm font-black text-ink">Filtry historii</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {[
+              { value: "today", label: "Dzisiaj" },
+              { value: "week", label: "Tydzień" },
+              { value: "month", label: "Miesiąc" },
+              { value: "custom", label: "Zakres" },
+            ].map((item) => (
+              <button
+                className={`min-h-11 rounded-xl px-3 text-sm font-black transition ${
+                  preset === item.value ? "bg-ink text-white shadow-[0_12px_24px_rgba(18,24,38,0.16)]" : "bg-white text-muted hover:text-ink"
+                }`}
+                key={item.value}
+                onClick={() => setPreset(item.value as RangePreset)}
+                type="button"
+              >
+                {item.label}
+              </button>
             ))}
-          </Select>
-          <Select value={client} onChange={(event) => setClient(event.target.value)}>
-            <option value="all">Wszyscy klienci</option>
-            {clients.map((clientName) => (
-              <option key={clientName} value={clientName}>
-                {clientName}
-              </option>
-            ))}
-          </Select>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+              <option value="all">Wszystkie budowy</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </Select>
+            <Select value={client} onChange={(event) => setClient(event.target.value)}>
+              <option value="all">Wszyscy klienci</option>
+              {clients.map((clientName) => (
+                <option key={clientName} value={clientName}>
+                  {clientName}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
         {preset === "custom" ? (
           <div className="grid gap-3 md:grid-cols-2">

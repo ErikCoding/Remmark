@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness, CalendarDays, Clock3, Plus, TimerReset, type LucideIcon } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, CalendarDays, Clock3, FileText, Plus, TimerReset, type LucideIcon } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { PageHeader } from "@/components/app/page-header";
 import { LogCard } from "@/components/logs/log-card";
@@ -33,22 +33,39 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <PageHeader title="Dzień dobry" subtitle={`${profile?.name ?? "Remmark"} · ${formatLongDate(new Date())}`} />
-      <div className="space-y-7">
-        <section className="surface overflow-hidden p-5 md:p-6">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+      <div className="space-y-6">
+        <section className="grid gap-4 lg:grid-cols-[1.45fr_0.75fr]">
+          <div className="surface overflow-hidden p-5 md:p-6">
             <div>
-              <p className="eyebrow">Najczęstsza akcja</p>
-              <h2 className="mt-2 text-2xl font-black leading-tight text-ink">Zapisz pracę z budowy</h2>
-              <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-muted">
-                Wybierz budowę, wpisz godziny i opis. Resztę aplikacja policzy za Ciebie.
-              </p>
+              <p className="eyebrow">Start pracy</p>
+              <h2 className="mt-2 max-w-xl text-3xl font-black leading-[1.05] text-ink md:text-4xl">Co chcesz zapisać?</h2>
+              <p className="mt-3 max-w-xl text-sm font-medium leading-6 text-muted">Najkrótsza ścieżka: ręczny wpis po pracy albo timer, gdy zaczynasz teraz.</p>
             </div>
-            <Link className="shrink-0" href="/logs/new">
-              <Button className="min-h-14 px-5 text-base" full>
-                <Plus className="h-5 w-5" />
-                Dodaj wpis
-              </Button>
-            </Link>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <Link className="tap-highlight rounded-2xl bg-ink p-4 text-white shadow-[0_18px_38px_rgba(18,24,38,0.22)]" href="/logs/new">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/12">
+                  <Plus className="h-5 w-5" />
+                </span>
+                <span className="mt-4 block text-lg font-black">Dodaj wpis</span>
+                <span className="mt-1 block text-sm font-medium text-white/70">Godziny, opis i budowa</span>
+              </Link>
+              <Link className="tap-highlight rounded-2xl border border-slate-200 bg-white p-4 text-ink shadow-[0_12px_30px_rgba(15,23,42,0.06)]" href="/reports">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                  <FileText className="h-5 w-5" />
+                </span>
+                <span className="mt-4 block text-lg font-black">Raport</span>
+                <span className="mt-1 block text-sm font-medium text-muted">PDF, CSV lub druk</span>
+              </Link>
+            </div>
+          </div>
+          <div className="surface-flat p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+            <p className="eyebrow">Dzisiaj</p>
+            <p className="mt-3 text-4xl font-black tracking-tight text-ink">{formatDuration(stats.today)}</p>
+            <p className="mt-1 text-sm font-semibold text-muted">zapisanej pracy</p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <MiniStat label="Tydzień" value={formatDuration(stats.week)} />
+              <MiniStat label="Budowy" value={String(stats.activeProjects)} />
+            </div>
           </div>
         </section>
         {user ? <TimerPanel userId={user.uid} projects={projects.filter((project) => project.status === "active")} /> : null}
@@ -89,6 +106,15 @@ function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
       </div>
       <p className="mt-4 text-xs font-bold uppercase tracking-[0.06em] text-muted">{label}</p>
       <p className="mt-1 text-2xl font-black text-ink">{value}</p>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.08em] text-muted">{label}</p>
+      <p className="mt-1 text-lg font-black text-ink">{value}</p>
     </div>
   );
 }

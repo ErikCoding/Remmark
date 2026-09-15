@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Plus, Search } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { PageHeader } from "@/components/app/page-header";
 import { ProjectCard } from "@/components/projects/project-card";
 import { ProjectForm } from "@/components/projects/project-form";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input, Select } from "@/components/ui/field";
+import { Input } from "@/components/ui/field";
 import { useAuth } from "@/context/auth-context";
 import { useProjects } from "@/hooks/use-projects";
 import { useRangeLogs } from "@/hooks/use-range-logs";
@@ -46,18 +47,34 @@ export default function ProjectsPage() {
       <PageHeader
         title="Budowy"
         subtitle="Lista projektów, statusy i historia wizyt."
-        action={<Button onClick={() => setShowForm((visible) => !visible)}>{showForm ? "Zamknij" : "Nowa"}</Button>}
+        action={<Button onClick={() => setShowForm((visible) => !visible)}>{showForm ? "Zamknij" : <><Plus className="h-4 w-4" />Nowa</>}</Button>}
       />
       <div className="space-y-4">
         {showForm ? <ProjectForm onSaved={() => setShowForm(false)} /> : null}
-        <div className="grid gap-3 md:grid-cols-[1fr_180px]">
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Szukaj po nazwie, kliencie lub adresie" />
-          <Select value={status} onChange={(event) => setStatus(event.target.value as ProjectStatus | "all")}>
-            <option value="all">Wszystkie statusy</option>
-            <option value="active">Aktywne</option>
-            <option value="paused">Wstrzymane</option>
-            <option value="completed">Zakończone</option>
-          </Select>
+        <div className="tool-panel space-y-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Input className="pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Szukaj po nazwie, kliencie lub adresie" />
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              { value: "all", label: "Wszystkie" },
+              { value: "active", label: "Aktywne" },
+              { value: "paused", label: "Wstrzymane" },
+              { value: "completed", label: "Zakończone" },
+            ].map((item) => (
+              <button
+                className={`min-h-11 rounded-xl px-3 text-sm font-black transition ${
+                  status === item.value ? "bg-ink text-white shadow-[0_12px_24px_rgba(18,24,38,0.16)]" : "bg-white text-muted hover:text-ink"
+                }`}
+                key={item.value}
+                onClick={() => setStatus(item.value as ProjectStatus | "all")}
+                type="button"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
         {filteredProjects.length === 0 ? <EmptyState title="Brak budów" body="Dodaj pierwszą budowę, aby zacząć logować czas." /> : null}
         <div className="grid gap-3 md:grid-cols-2">

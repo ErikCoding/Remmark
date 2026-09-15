@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { BriefcaseBusiness, CalendarClock, Languages, Mic, Plus, Save, StickyNote, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -125,65 +126,107 @@ export function LogForm({
       <form className="surface-flat space-y-5 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] md:p-5" onSubmit={handleSubmit}>
         {message ? <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-success">{message}</p> : null}
         {error ? <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-danger">{error}</p> : null}
-        <Field label="Budowa">
-          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-            <Select value={projectId} onChange={(event) => setProjectId(event.target.value)} required>
-              <option value="">Wybierz budowę</option>
-              {orderedProjects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.id === savedDefaults.projectId ? "Ostatnio: " : ""}
-                  {project.name} · {project.client}
-                </option>
-              ))}
-            </Select>
-            <Button type="button" variant="secondary" onClick={() => setShowProjectForm((visible) => !visible)}>
-              Nowa
-            </Button>
-          </div>
-        </Field>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Data">
-            <Input type="date" value={dateKey} onChange={(event) => setDateKey(event.target.value)} required />
-          </Field>
-          <Field label="Start">
-            <Input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} required />
-          </Field>
-          <Field label="Koniec">
-            <Input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} required />
-          </Field>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-ink">
-          Czas pracy: {durationMinutes > 0 ? formatDuration(durationMinutes) : "sprawdź godziny"}
-        </div>
-        <Field label="Co robiłeś?">
-          <div className="space-y-2">
-            <Textarea
-              value={descriptionPL}
-              onChange={(event) => setDescriptionPL(event.target.value)}
-              placeholder="Montaż profili, poprawki sufitu i przygotowanie ściany."
-            />
-            <div className="flex flex-wrap gap-2">
-              {speech.supported ? (
-                <Button type="button" variant="secondary" onClick={speech.start}>
-                  {speech.listening ? "Słucham..." : "Mikrofon"}
-                </Button>
-              ) : null}
-              <Button type="button" variant="secondary" disabled={translating || !descriptionPL.trim()} onClick={translateDescription}>
-                {translating ? "Tłumaczenie..." : "Przetłumacz na NL"}
+        <FormStep icon={BriefcaseBusiness} title="Budowa" caption="Wybierz miejsce pracy albo dodaj nowe w kilka sekund.">
+          <Field label="Budowa">
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <Select value={projectId} onChange={(event) => setProjectId(event.target.value)} required>
+                <option value="">Wybierz budowę</option>
+                {orderedProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.id === savedDefaults.projectId ? "Ostatnio: " : ""}
+                    {project.name} · {project.client}
+                  </option>
+                ))}
+              </Select>
+              <Button type="button" variant="secondary" onClick={() => setShowProjectForm((visible) => !visible)}>
+                <Plus className="h-4 w-4" />
+                Nowa
               </Button>
             </div>
+          </Field>
+        </FormStep>
+
+        <FormStep icon={CalendarClock} title="Czas pracy" caption="Godziny przeliczają się automatycznie.">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label="Data">
+              <Input type="date" value={dateKey} onChange={(event) => setDateKey(event.target.value)} required />
+            </Field>
+            <Field label="Start">
+              <Input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} required />
+            </Field>
+            <Field label="Koniec">
+              <Input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} required />
+            </Field>
           </div>
-        </Field>
-        <Field label="Opis NL">
-          <Textarea value={descriptionNL} onChange={(event) => setDescriptionNL(event.target.value)} placeholder="Niderlandzkie tłumaczenie" />
-        </Field>
-        <Field label="Notatka">
-          <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Opcjonalne dodatkowe informacje" />
-        </Field>
+          <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <span className="text-sm font-bold text-muted">Czas pracy</span>
+            <span className="text-lg font-black text-ink">{durationMinutes > 0 ? formatDuration(durationMinutes) : "sprawdź godziny"}</span>
+          </div>
+        </FormStep>
+
+        <FormStep icon={StickyNote} title="Opis" caption="Krótko zapisz, co zostało zrobione. Możesz podyktować po polsku.">
+          <Field label="Co robiłeś?">
+            <div className="space-y-2">
+              <Textarea
+                value={descriptionPL}
+                onChange={(event) => setDescriptionPL(event.target.value)}
+                placeholder="Montaż profili, poprawki sufitu i przygotowanie ściany."
+              />
+              <div className="flex flex-wrap gap-2">
+                {speech.supported ? (
+                  <Button type="button" variant="secondary" onClick={speech.start}>
+                    <Mic className="h-4 w-4" />
+                    {speech.listening ? "Słucham..." : "Mikrofon"}
+                  </Button>
+                ) : null}
+                <Button type="button" variant="secondary" disabled={translating || !descriptionPL.trim()} onClick={translateDescription}>
+                  <Languages className="h-4 w-4" />
+                  {translating ? "Tłumaczenie..." : "Przetłumacz na NL"}
+                </Button>
+              </div>
+            </div>
+          </Field>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Field label="Opis NL">
+              <Textarea value={descriptionNL} onChange={(event) => setDescriptionNL(event.target.value)} placeholder="Niderlandzkie tłumaczenie" />
+            </Field>
+            <Field label="Notatka">
+              <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Opcjonalne dodatkowe informacje" />
+            </Field>
+          </div>
+        </FormStep>
         <Button disabled={saving || durationMinutes <= 0} full>
+          <Save className="h-4 w-4" />
           {saving ? "Zapisywanie..." : initialLog ? "Zapisz zmiany" : "Zapisz wpis"}
         </Button>
       </form>
     </div>
+  );
+}
+
+function FormStep({
+  icon: Icon,
+  title,
+  caption,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  caption: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 md:p-4">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-ink shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+        <div>
+          <h2 className="text-base font-black text-ink">{title}</h2>
+          <p className="mt-0.5 text-sm font-medium leading-5 text-muted">{caption}</p>
+        </div>
+      </div>
+      {children}
+    </section>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Download, FileSpreadsheet, Printer, SlidersHorizontal } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
@@ -42,34 +43,40 @@ export default function ReportsPage() {
     <AppShell>
       <PageHeader title="Raporty" subtitle="Eksportuj zestawienie pracy dla klienta lub budowy." />
       <div className="space-y-5">
-        <section className="no-print surface-flat grid gap-3 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] md:grid-cols-3">
-          <Select value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>
-            <option value="today">Dzisiaj</option>
-            <option value="week">Ten tydzień</option>
-            <option value="month">Ten miesiąc</option>
-            <option value="previousMonth">Poprzedni miesiąc</option>
-            <option value="custom">Własny zakres</option>
-          </Select>
-          <Select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-            <option value="all">Wszystkie budowy</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </Select>
-          <Select value={client} onChange={(event) => setClient(event.target.value)}>
-            <option value="all">Wszyscy klienci</option>
-            {clients.map((clientName) => (
-              <option key={clientName} value={clientName}>
-                {clientName}
-              </option>
-            ))}
-          </Select>
-          <Select value={language} onChange={(event) => setLanguage(event.target.value as ReportLanguage)}>
-            <option value="pl">Polski</option>
-            <option value="nl">Nederlands</option>
-          </Select>
+        <section className="no-print tool-panel space-y-3">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 text-muted" />
+            <p className="text-sm font-black text-ink">Ustawienia raportu</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            <Select value={preset} onChange={(event) => setPreset(event.target.value as Preset)}>
+              <option value="today">Dzisiaj</option>
+              <option value="week">Ten tydzień</option>
+              <option value="month">Ten miesiąc</option>
+              <option value="previousMonth">Poprzedni miesiąc</option>
+              <option value="custom">Własny zakres</option>
+            </Select>
+            <Select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+              <option value="all">Wszystkie budowy</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </Select>
+            <Select value={client} onChange={(event) => setClient(event.target.value)}>
+              <option value="all">Wszyscy klienci</option>
+              {clients.map((clientName) => (
+                <option key={clientName} value={clientName}>
+                  {clientName}
+                </option>
+              ))}
+            </Select>
+            <Select value={language} onChange={(event) => setLanguage(event.target.value as ReportLanguage)}>
+              <option value="pl">Polski</option>
+              <option value="nl">Nederlands</option>
+            </Select>
+          </div>
           {preset === "custom" ? (
             <>
               <Input type="date" value={customRange.from} onChange={(event) => setCustomRange((value) => ({ ...value, from: event.target.value }))} />
@@ -77,24 +84,31 @@ export default function ReportsPage() {
             </>
           ) : null}
         </section>
-        <div className="no-print flex flex-wrap gap-2">
+        <div className="no-print grid gap-2 sm:grid-cols-3">
           <Button variant="secondary" onClick={() => exportLogsToPdf(filteredLogs, projects, rangeLabel, language)}>
+            <Download className="h-4 w-4" />
             Pobierz PDF
           </Button>
           <Button variant="secondary" onClick={() => exportLogsToCsv(filteredLogs, projects, language)}>
+            <FileSpreadsheet className="h-4 w-4" />
             Eksport CSV
           </Button>
           <Button variant="secondary" onClick={() => window.print()}>
+            <Printer className="h-4 w-4" />
             Drukuj
           </Button>
         </div>
         <section className="surface-flat p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-ink">Remmark</h2>
-              <p className="mt-1 text-sm text-muted">Zakres raportu: {rangeLabel}</p>
+              <p className="eyebrow">Raport pracy</p>
+              <h2 className="mt-1 text-3xl font-black text-ink">Remmark</h2>
+              <p className="mt-1 text-sm font-semibold text-muted">Zakres: {rangeLabel}</p>
             </div>
-            <p className="text-right text-sm font-bold text-ink">Łącznie: {formatDuration(totalMinutes)}</p>
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
+              <p className="text-[10px] font-black uppercase tracking-[0.08em] text-muted">Łącznie</p>
+              <p className="mt-1 text-xl font-black text-ink">{formatDuration(totalMinutes)}</p>
+            </div>
           </div>
           {filteredLogs.length === 0 ? <EmptyState title="Brak danych w raporcie" /> : null}
           <div className="space-y-7">
