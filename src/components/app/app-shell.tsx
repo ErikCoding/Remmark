@@ -78,20 +78,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="mx-auto max-w-5xl">{children}</div>
           </main>
         </div>
-        <nav className="no-print fixed inset-x-0 bottom-0 z-20 border-t border-white/80 bg-white/92 px-2 pb-[calc(0.55rem+var(--safe-bottom))] pt-2 shadow-[0_-18px_46px_rgba(15,23,42,0.13)] backdrop-blur-xl md:hidden">
+        <nav className="no-print fixed inset-x-0 bottom-0 z-20 border-t border-white/80 bg-white/92 px-2 pb-[calc(0.55rem+var(--safe-bottom))] pt-2 shadow-[0_-14px_38px_rgba(15,23,42,0.10)] backdrop-blur-xl md:hidden">
           <div className="relative mx-auto grid max-w-md grid-cols-5 items-end gap-1 overflow-visible rounded-[1.65rem]">
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 top-0 z-0 w-1/5 rounded-[1.55rem] bg-ink shadow-[0_18px_34px_rgba(18,24,38,0.18)] transition-transform duration-500 ease-[cubic-bezier(.16,1,.3,1)]"
+              className="pointer-events-none absolute bottom-1 top-1 z-0 w-1/5 rounded-[1.35rem] bg-slate-100/95 shadow-[0_10px_22px_rgba(15,23,42,0.07)] transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)]"
               style={{ transform: `translateX(${activeIndex * 100}%)` }}
             />
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 z-0 h-1.5 w-1/5 transition-transform duration-500 ease-[cubic-bezier(.16,1,.3,1)]"
-              style={{ transform: `translateX(${activeIndex * 100}%)` }}
-            >
-              <span className="mx-auto block h-1.5 w-8 rounded-full bg-brand-500 shadow-[0_0_20px_rgba(59,130,246,0.55)]" />
-            </span>
             {navItems.map((item) => {
               const active = isActivePath(pathname, item.href);
               const isAdd = item.href === "/logs/new";
@@ -100,8 +93,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   aria-label={isAdd ? "Dodaj wpis" : item.label}
                   className={classNames(
-                    "relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold text-muted transition duration-500 ease-[cubic-bezier(.16,1,.3,1)]",
-                    active && "text-white",
+                    "relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold text-muted transition duration-300 ease-[cubic-bezier(.2,.8,.2,1)]",
+                    active && "text-ink",
                     isAdd && "-mt-7",
                   )}
                   href={item.href}
@@ -109,15 +102,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <span
                     className={classNames(
-                      "flex h-8 w-8 items-center justify-center rounded-xl transition duration-500 ease-[cubic-bezier(.16,1,.3,1)]",
-                      active && !isAdd && "-translate-y-1.5 scale-125 bg-white/14",
+                      "flex h-8 w-8 items-center justify-center rounded-xl transition duration-300 ease-[cubic-bezier(.2,.8,.2,1)]",
+                      active && !isAdd && "-translate-y-0.5 scale-110",
                       isAdd && "h-14 w-14 rounded-2xl bg-ink text-white shadow-[0_18px_34px_rgba(18,24,38,0.24)]",
-                      isAdd && active && "-translate-y-1.5 scale-110 animate-[mobile-add-pulse_1.55s_ease-in-out_infinite] ring-4 ring-brand-100",
+                      isAdd && active && "-translate-y-0.5 scale-105 ring-4 ring-slate-200",
                     )}
                   >
-                    <Icon className={classNames("transition-transform duration-500 ease-[cubic-bezier(.16,1,.3,1)]", isAdd ? "h-7 w-7" : "h-5 w-5", active && "scale-110")} strokeWidth={2.25} />
+                    <Icon className={classNames("transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)]", isAdd ? "h-7 w-7" : "h-5 w-5", active && "scale-105")} strokeWidth={2.25} />
                   </span>
-                  {!isAdd ? <span className={classNames("transition duration-500 ease-[cubic-bezier(.16,1,.3,1)]", active && "-translate-y-1 font-black")}>{item.label}</span> : null}
+                  {!isAdd ? <span className={classNames("transition duration-300 ease-[cubic-bezier(.2,.8,.2,1)]", active && "-translate-y-0.5 font-black")}>{item.label}</span> : null}
                 </Link>
               );
             })}
