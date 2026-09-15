@@ -32,7 +32,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Dzień dobry, Panie Marku 👋" subtitle={`${profile?.name ?? "Remmark"} · ${formatLongDate(new Date())}`} />
+      <PageHeader title="Cześć, Marku 👋" subtitle={`${profile?.name ?? "Remmark"} · ${formatLongDate(new Date())}`} />
       <div className="space-y-6">
         <section className="grid gap-4 lg:grid-cols-[1.45fr_0.75fr]">
           <div className="surface overflow-hidden p-5 md:p-6">

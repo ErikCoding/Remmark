@@ -16,6 +16,10 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const activeIndex = Math.max(
+    navItems.findIndex((item) => isActivePath(pathname, item.href)),
+    0,
+  );
 
   return (
     <AuthGate>
@@ -32,22 +36,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <nav className="space-y-1.5">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const active = pathname === item.href;
+                const active = isActivePath(pathname, item.href);
                 const isAdd = item.href === "/logs/new";
                 return (
-                <Link
-                  className={classNames(
-                    "group flex min-h-12 items-center gap-3 rounded-2xl px-3 text-sm font-bold text-muted transition hover:bg-slate-100/80 hover:text-ink",
-                    active && "bg-ink text-white shadow-[0_14px_30px_rgba(18,24,38,0.16)] hover:bg-ink hover:text-white",
-                    isAdd && !active && "mt-5 bg-brand-600 text-white shadow-[0_14px_30px_rgba(37,99,235,0.20)] hover:bg-brand-700 hover:text-white",
-                  )}
-                  href={item.href}
-                  key={item.href}
-                >
-                  <Icon className="h-5 w-5" strokeWidth={2.2} />
-                  <span>{isAdd ? "Dodaj wpis" : item.label}</span>
-                </Link>
-              );
+                  <Link
+                    className={classNames(
+                      "group flex min-h-12 items-center gap-3 rounded-2xl px-3 text-sm font-bold text-muted transition hover:bg-slate-100/80 hover:text-ink",
+                      active && "bg-ink text-white shadow-[0_14px_30px_rgba(18,24,38,0.16)] hover:bg-ink hover:text-white",
+                      isAdd && !active && "mt-5 bg-brand-600 text-white shadow-[0_14px_30px_rgba(37,99,235,0.20)] hover:bg-brand-700 hover:text-white",
+                    )}
+                    href={item.href}
+                    key={item.href}
+                  >
+                    <Icon className="h-5 w-5" strokeWidth={2.2} />
+                    <span>{isAdd ? "Dodaj wpis" : item.label}</span>
+                  </Link>
+                );
               })}
             </nav>
             <div className="absolute inset-x-4 bottom-6 rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
@@ -75,16 +79,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
         <nav className="no-print fixed inset-x-0 bottom-0 z-20 border-t border-white/80 bg-white/90 px-2 pb-[calc(0.55rem+var(--safe-bottom))] pt-2 shadow-[0_-14px_40px_rgba(15,23,42,0.10)] backdrop-blur-xl md:hidden">
-          <div className="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
+          <div className="relative mx-auto grid max-w-md grid-cols-5 items-end gap-1">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-1 top-1 z-0 w-1/5 rounded-[1.4rem] bg-slate-100/95 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)]"
+              style={{ transform: `translateX(${activeIndex * 100}%)` }}
+            />
             {navItems.map((item) => {
-              const active = pathname === item.href;
+              const active = isActivePath(pathname, item.href);
               const isAdd = item.href === "/logs/new";
               const Icon = item.icon;
               return (
                 <Link
                   aria-label={isAdd ? "Dodaj wpis" : item.label}
                   className={classNames(
-                    "flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold text-muted transition",
+                    "relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold text-muted transition duration-300",
                     active && "text-ink",
                     isAdd && "-mt-7",
                   )}
@@ -93,14 +102,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <span
                     className={classNames(
-                      "flex h-8 w-8 items-center justify-center rounded-xl transition",
+                      "flex h-8 w-8 items-center justify-center rounded-xl transition duration-300",
+                      active && !isAdd && "-translate-y-0.5 scale-110",
                       isAdd && "h-14 w-14 rounded-2xl bg-ink text-white shadow-[0_18px_34px_rgba(18,24,38,0.24)]",
-                      active && !isAdd && "bg-slate-100",
+                      isAdd && active && "animate-[mobile-add-pulse_1.8s_ease-in-out_infinite] ring-4 ring-slate-200",
                     )}
                   >
-                    <Icon className={isAdd ? "h-7 w-7" : "h-5 w-5"} strokeWidth={2.25} />
+                    <Icon className={classNames("transition-transform duration-300", isAdd ? "h-7 w-7" : "h-5 w-5", active && "scale-110")} strokeWidth={2.25} />
                   </span>
-                  {!isAdd ? <span>{item.label}</span> : null}
+                  {!isAdd ? <span className={classNames("transition-transform duration-300", active && "-translate-y-0.5")}>{item.label}</span> : null}
                 </Link>
               );
             })}
@@ -109,4 +119,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
     </AuthGate>
   );
+}
+
+function isActivePath(pathname: string, href: string): boolean {
+  if (href === "/dashboard") return pathname === "/" || pathname === "/dashboard";
+  if (href === "/logs/new") return pathname === "/logs/new";
+  if (href === "/projects") return pathname.startsWith("/projects");
+  if (href === "/reports") return pathname.startsWith("/reports");
+  if (href === "/account") return pathname.startsWith("/account");
+  return pathname === href;
 }

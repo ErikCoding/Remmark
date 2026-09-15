@@ -85,6 +85,17 @@ button {
   }
 }
 
+@keyframes mobile-add-pulse {
+  0%,
+  100% {
+    box-shadow: 0 18px 34px rgba(18, 24, 38, 0.24);
+  }
+
+  50% {
+    box-shadow: 0 22px 42px rgba(37, 99, 235, 0.24);
+  }
+}
+
 @media print {
   .no-print {
     display: none !important;
