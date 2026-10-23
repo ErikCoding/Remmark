@@ -1,97 +1,61 @@
-# Remmark Worklog
+# Remmark – dziennik pracy
 
-Nowoczesna aplikacja webowa/PWA do szybkiego logowania pracy na budowach. Stack: Next.js, TypeScript, Tailwind CSS, Firebase Authentication i Cloud Firestore.
+Prosta aplikacja webowa (PWA) do codziennego zapisywania pracy na budowach: gdzie, od której do której, ile przerwy i co było robione. Do tego raporty za dowolny okres (PDF, Excel, druk) i statystyki.
 
-## Funkcje
+Stack: Next.js 15, TypeScript, Tailwind CSS, Firebase Authentication, Cloud Firestore, pdfmake.
 
-- Logowanie przez Firebase Authentication bez publicznej rejestracji.
-- Chronione widoki aplikacji z przekierowaniem do `/login`.
-- Budowy z wyszukiwaniem, statusami i statystykami.
-- Szybkie wpisy czasu pracy z opisem PL/NL i notatkami.
-- Timer pracy zapisany w Firestore, odporny na odświeżenie i ponowne otwarcie aplikacji.
-- Historia wpisów z filtrami dat, budowy i klienta.
-- Raporty PL/NL z eksportem PDF, CSV i drukiem.
-- Dyktowanie opisu, jeśli przeglądarka wspiera Web Speech API.
-- PWA z manifestem, ikoną i service workerem.
+## Co umie
 
-## Konfiguracja lokalna
+- **Dziś** – „Zaczynam pracę” od razu włącza licznik, bez wybierania budowy. W trakcie: „+ Gdzie jesteś?”, „Zmieniam miejsce” (poprzednie miejsce kończy się w tej chwili), „Przerwa / Wracam”. Po „Kończę” cały dzień pokazuje się do sprawdzenia – miejsca, godziny, przerwa, opisy – i zapisuje się jednym przyciskiem. Licznik działa po zamknięciu aplikacji i na innym urządzeniu.
+- **Wpisz dzień** – kilka miejsc w jednym dniu: dla każdego „Gdzie?” (wpisujesz nazwę, pojawiają się pasujące podpowiedzi, nowa nazwa sama dopisze się do budów), godziny od–do i opis. „+ Dodaj kolejne miejsce” zaczyna od końca poprzedniego. Przerwa za cały dzień jednym dotknięciem. Pilnuje, żeby godziny się nie nakładały, pokazuje czas między miejscami (dojazd, nie liczy się). Otwarcie dnia, który już jest zapisany, pozwala go poprawić albo dopisać miejsca.
+- **Historia** – miesiąc po miesiącu, pogrupowane na dni z sumą dnia, filtr budowy. Dotknięcie wpisu otwiera cały dzień do edycji.
+- **Raporty** – ten/poprzedni tydzień, ten/poprzedni miesiąc, rok, własne daty, filtr budowy. Podsumowanie (godziny, dni pracy, średnio dziennie, przerwy, typowe godziny, najdłuższy dzień), wykres dzień po dniu lub miesiąc po miesiącu, podział na budowy, lista wpisów. Eksport: PDF (PL lub NL, z polskimi znakami), CSV dla Excela, druk.
+- **Budowy** – lista z wyszukiwaniem, statusy (w toku / wstrzymana / zakończona), szczegóły budowy z sumą godzin i jej raportem.
+- **Konto** – imię i nazwisko (na raportach), zmiana hasła, wylogowanie.
 
-1. Zainstaluj zależności:
+## Model danych (Firestore)
+
+- `users/{userId}` – profil (`name` pojawia się na raportach).
+- `projects/{projectId}` – budowy.
+- `logs/{logId}` – jeden wpis = jedno miejsce w danym dniu: `dateKey`, `projectId`, `startTime`, `endTime`, `breakMinutes`, `durationMinutes` (**netto, bez przerwy**), opisy. Dzień z trzema miejscami to trzy wpisy z tym samym `dateKey`.
+- `activeTimers/{userId}` – trwający licznik: lista odcinków `segments` (miejsce, od kiedy, przerwy) i ewentualnie trwająca przerwa.
+
+Starsze wpisy bez `breakMinutes` są traktowane jako wpisy bez przerwy – nic nie trzeba migrować.
+
+## Uruchomienie lokalne
 
 ```bash
 npm install
+cp .env.example .env.local   # uzupełnij dane z Firebase
+npm run dev                  # http://localhost:3001
 ```
 
-2. Skopiuj `.env.example` do `.env.local` i uzupełnij wartości z Firebase:
+## Firebase – po tej wersji trzeba raz wdrożyć indeksy
 
-```bash
-cp .env.example .env.local
-```
-
-Wymagane pola:
-
-- `NEXT_PUBLIC_FIREBASE_API_KEY`
-- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-- `NEXT_PUBLIC_FIREBASE_APP_ID`
-
-Opcjonalne tłumaczenie:
-
-- `TRANSLATION_API_URL` - backendowy endpoint zgodny np. z LibreTranslate.
-- `TRANSLATION_API_KEY` - klucz API, jeśli dostawca go wymaga.
-
-3. Uruchom aplikację:
-
-```bash
-npm run dev
-```
-
-## Firebase Authentication
-
-1. W Firebase Console utwórz projekt.
-2. Włącz Authentication.
-3. Włącz metodę Email/Password.
-4. Nie włączaj publicznej rejestracji w aplikacji. Użytkowników twórz ręcznie w Firebase Console: Authentication -> Users -> Add user.
-5. Po pierwszym logowaniu aplikacja utworzy dokument `users/{uid}` z podstawowym profilem użytkownika.
-
-## Firestore
-
-Wdróż reguły i indeksy:
+Doszedł nowy indeks (wpisy danej budowy). Wdróż reguły i indeksy:
 
 ```bash
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-Model danych:
+Użytkowników dodajesz ręcznie: Firebase Console → Authentication → Users → Add user (aplikacja nie ma publicznej rejestracji).
 
-- `users/{userId}` - profil użytkownika.
-- `projects/{projectId}` - budowy/projekty.
-- `logs/{logId}` - wpisy czasu pracy.
-- `activeTimers/{userId}` - aktywny timer użytkownika.
+## Tłumaczenie PL → NL (opcjonalne)
 
-Reguły w `firestore.rules` blokują niezalogowanych użytkowników. Wpisy i timery są ograniczone do właściciela `userId`.
+Ustaw w `.env.local` / na Vercel `TRANSLATION_PROVIDER=deepl`, `TRANSLATION_API_URL`, `TRANSLATION_API_KEY` (szczegóły w `.env.example`). Bez tego przycisk tłumaczenia pokaże komunikat, reszta działa normalnie.
 
-## PWA
+## Wdrożenie (Vercel)
 
-Manifest znajduje się w `public/manifest.webmanifest`, ikona w `public/icon.svg`, a service worker w `public/sw.js`. Service worker rejestruje się w produkcji. Po wdrożeniu na HTTPS aplikację można dodać do ekranu głównego telefonu.
+1. Dodaj zmienne z `.env.local` w Settings → Environment Variables.
+2. Deploy.
+3. Domenę Vercel dodaj w Firebase → Authentication → Settings → Authorized domains.
 
-## Wdrożenie na Vercel
-
-1. Utwórz projekt w Vercel z tego repozytorium.
-2. Dodaj wszystkie zmienne z `.env.local` w Settings -> Environment Variables.
-3. Wdróż aplikację.
-4. W Firebase Console dodaj domenę Vercel do Authentication -> Settings -> Authorized domains.
-5. Zweryfikuj logowanie, zapis budowy, wpisu, timer oraz eksport raportu.
+Na telefonie: otwórz stronę i dodaj do ekranu głównego (iPhone: Udostępnij → Do ekranu początkowego; Android: menu → Dodaj do ekranu głównego).
 
 ## Kontrola jakości
-
-Przed wdrożeniem uruchom:
 
 ```bash
 npm run typecheck
 npm run lint
 npm run build
 ```
-
-`npm audit --omit=dev` może zgłaszać podatność przechodnią `next -> postcss` w Next 15. Według npm naprawa wymaga major upgrade do Next 16 (`npm audit fix --force`), więc należy wykonać ją jako osobną, świadomą migrację i ponownie przetestować aplikację.

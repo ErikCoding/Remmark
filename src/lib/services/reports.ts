@@ -1,57 +1,253 @@
-import { csvEscape } from "@/lib/utils/text";
-import { formatDuration, formatShortDate } from "@/lib/utils/date";
-import type { Project, ReportLanguage, WorkLog } from "@/types/domain";
+import { computeStats } from "@/lib/services/stats";
+import { logBreak } from "@/lib/services/logs";
+import { formatDuration, formatHoursDecimal, formatKey, formatRange, todayKey, weekdayShort } from "@/lib/utils/date";
+import type { DateRange, Project, ReportLanguage, WorkLog } from "@/types/domain";
 
-export function exportLogsToCsv(logs: WorkLog[], projects: Project[], language: ReportLanguage): void {
-  const projectById = new Map(projects.map((project) => [project.id, project]));
-  const header = ["Data", "Budowa", "Klient", "Start", "Koniec", "Minuty", "Opis"];
-  const rows = logs.map((log) => {
+type Labels = typeof labels.pl;
+
+const labels = {
+  pl: {
+    title: "Raport czasu pracy",
+    worker: "Pracownik",
+    period: "Okres",
+    generated: "Wygenerowano",
+    total: "Łącznie",
+    days: "Dni pracy",
+    breaks: "Przerwy",
+    sites: "Budowy",
+    bySite: "Podsumowanie budów",
+    details: "Szczegóły",
+    date: "Data",
+    site: "Budowa",
+    client: "Klient",
+    hours: "Godziny",
+    break: "Przerwa",
+    time: "Czas",
+    timeDecimal: "Godz.",
+    description: "Opis",
+    notes: "Notatka",
+    entries: "Wpisy",
+    empty: "Brak wpisów w wybranym okresie.",
+    page: "Strona",
+    of: "z",
+    file: "raport",
+  },
+  nl: {
+    title: "Urenrapport",
+    worker: "Medewerker",
+    period: "Periode",
+    generated: "Gegenereerd",
+    total: "Totaal",
+    days: "Werkdagen",
+    breaks: "Pauzes",
+    sites: "Projecten",
+    bySite: "Overzicht per project",
+    details: "Details",
+    date: "Datum",
+    site: "Project",
+    client: "Klant",
+    hours: "Tijden",
+    break: "Pauze",
+    time: "Duur",
+    timeDecimal: "Uren",
+    description: "Omschrijving",
+    notes: "Notitie",
+    entries: "Regels",
+    empty: "Geen registraties in deze periode.",
+    page: "Pagina",
+    of: "van",
+    file: "urenrapport",
+  },
+};
+
+export type ReportInput = {
+  logs: WorkLog[];
+  projects: Project[];
+  range: DateRange;
+  language: ReportLanguage;
+  workerName: string;
+};
+
+const describe = (log: WorkLog, language: ReportLanguage) =>
+  (language === "nl" ? log.descriptionNL || log.descriptionPL : log.descriptionPL) || "";
+
+const sortLogs = (logs: WorkLog[]) =>
+  [...logs].sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.startTime.localeCompare(b.startTime));
+
+function fileName(input: ReportInput, ext: string) {
+  const t: Labels = labels[input.language];
+  return `${t.file}-${input.range.from}_${input.range.to}.${ext}`;
+}
+
+export function exportLogsToCsv(input: ReportInput): void {
+  const t = labels[input.language];
+  const projectById = new Map(input.projects.map((project) => [project.id, project]));
+  const header = [t.date, t.site, t.client, "Start", "Koniec", `${t.break} (min)`, `${t.time} (h)`, t.description, t.notes];
+  const rows = sortLogs(input.logs).map((log) => {
     const project = projectById.get(log.projectId);
-    const description = language === "nl" ? log.descriptionNL || log.descriptionPL : log.descriptionPL;
     return [
       log.dateKey,
       project?.name ?? "",
       project?.client ?? "",
       log.startTime,
       log.endTime,
-      log.durationMinutes,
-      description,
+      logBreak(log),
+      formatHoursDecimal(log.durationMinutes),
+      describe(log, input.language),
+      log.notes ?? "",
+    ];
+  });
+  const total = input.logs.reduce((sum, log) => sum + log.durationMinutes, 0);
+  rows.push(["", "", "", "", "", "", formatHoursDecimal(total), t.total, ""]);
+
+  // Średnik + BOM, żeby polski Excel od razu poprawnie otworzył plik.
+  const csv = [header, ...rows].map((row) => row.map(csvEscape).join(";")).join("\r\n");
+  downloadBlob(new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" }), fileName(input, "csv"));
+}
+
+export async function exportLogsToPdf(input: ReportInput): Promise<void> {
+  const t = labels[input.language];
+  const [{ default: pdfMake }, vfsModule] = await Promise.all([import("pdfmake/build/pdfmake"), import("pdfmake/build/vfs_fonts")]);
+  const vfs = (vfsModule as unknown as { default?: Record<string, string> }).default ?? (vfsModule as unknown as Record<string, string>);
+  (pdfMake as unknown as { vfs: Record<string, string> }).vfs = vfs;
+
+  const projectById = new Map(input.projects.map((project) => [project.id, project]));
+  const stats = computeStats(input.logs, input.projects);
+  const logs = sortLogs(input.logs);
+  const ink = "#1B2430";
+  const muted = "#6B7480";
+  const line = "#DADFE5";
+  const accent = "#E8590C";
+
+  const summaryCell = (label: string, value: string) => ({
+    stack: [
+      { text: label.toUpperCase(), fontSize: 7, color: muted, bold: true, characterSpacing: 0.5 },
+      { text: value, fontSize: 15, bold: true, color: ink, margin: [0, 3, 0, 0] },
+    ],
+    margin: [8, 8, 8, 8],
+  });
+
+  const tableLayout = {
+    hLineWidth: (i: number) => (i === 0 ? 0 : 0.5),
+    vLineWidth: () => 0,
+    hLineColor: () => line,
+    paddingTop: () => 5,
+    paddingBottom: () => 5,
+    paddingLeft: () => 4,
+    paddingRight: () => 4,
+    fillColor: (rowIndex: number) => (rowIndex === 0 ? "#F2F4F6" : null),
+  };
+
+  const head = (text: string, alignment: "left" | "right" = "left") => ({ text, bold: true, fontSize: 8, color: muted, alignment });
+
+  const detailRows = logs.map((log) => {
+    const project = projectById.get(log.projectId);
+    const description = describe(log, input.language);
+    return [
+      { text: `${weekdayShort(log.dateKey)} ${formatKey(log.dateKey)}`, noWrap: true },
+      { text: project?.name ?? "—", bold: true },
+      { text: `${log.startTime}–${log.endTime}`, noWrap: true },
+      { text: logBreak(log) ? `${logBreak(log)} min` : "—", alignment: "right" },
+      { text: formatHoursDecimal(log.durationMinutes), alignment: "right", bold: true },
+      { text: [description || "—", log.notes ? { text: `\n${log.notes}`, color: muted, italics: true } : ""] },
     ];
   });
 
-  const csv = [header, ...rows]
-    .map((row) => row.map((value) => csvEscape(value)).join(","))
-    .join("\n");
-  downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "remmark-raport.csv");
+  const docDefinition = {
+    pageSize: "A4",
+    pageMargins: [36, 40, 36, 44],
+    defaultStyle: { font: "Roboto", fontSize: 9, color: ink, lineHeight: 1.15 },
+    info: { title: `${t.title} ${formatRange(input.range)}` },
+    footer: (currentPage: number, pageCount: number) => ({
+      columns: [
+        { text: `Remmark · ${input.workerName}`, color: muted, fontSize: 7 },
+        { text: `${t.page} ${currentPage} ${t.of} ${pageCount}`, alignment: "right", color: muted, fontSize: 7 },
+      ],
+      margin: [36, 12, 36, 0],
+    }),
+    content: [
+      {
+        columns: [
+          {
+            stack: [
+              { text: "REMMARK", bold: true, fontSize: 9, color: accent, characterSpacing: 1.5 },
+              { text: t.title, fontSize: 20, bold: true, margin: [0, 4, 0, 0] },
+            ],
+          },
+          {
+            width: "auto",
+            stack: [
+              { text: `${t.worker}: ${input.workerName}`, alignment: "right" },
+              { text: `${t.period}: ${formatRange(input.range)}`, alignment: "right", bold: true },
+              { text: `${t.generated}: ${formatKey(todayKey())}`, alignment: "right", color: muted, fontSize: 8 },
+            ],
+          },
+        ],
+      },
+      {
+        margin: [0, 16, 0, 0],
+        table: {
+          widths: ["*", "*", "*", "*"],
+          body: [
+            [
+              summaryCell(t.total, `${formatHoursDecimal(stats.totalMinutes)} h`),
+              summaryCell(t.days, String(stats.daysWorked)),
+              summaryCell(t.breaks, formatDuration(stats.totalBreakMinutes)),
+              summaryCell(t.sites, String(stats.projectCount)),
+            ],
+          ],
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => "#F6F7F9" },
+      },
+      ...(logs.length === 0
+        ? [{ text: t.empty, margin: [0, 24, 0, 0], color: muted }]
+        : [
+            { text: t.bySite, fontSize: 12, bold: true, margin: [0, 20, 0, 6] },
+            {
+              table: {
+                headerRows: 1,
+                widths: ["*", "auto", "auto", "auto"],
+                body: [
+                  [head(t.site), head(t.days, "right"), head(t.entries, "right"), head(`${t.timeDecimal}`, "right")],
+                  ...stats.byProject.map((project) => [
+                    { stack: [{ text: project.name, bold: true }, project.client ? { text: project.client, color: muted, fontSize: 8 } : ""] },
+                    { text: String(project.days), alignment: "right" },
+                    { text: String(project.entries), alignment: "right" },
+                    { text: formatHoursDecimal(project.minutes), alignment: "right", bold: true },
+                  ]),
+                  [
+                    { text: t.total, bold: true },
+                    { text: String(stats.daysWorked), alignment: "right", bold: true },
+                    { text: String(stats.entries), alignment: "right", bold: true },
+                    { text: formatHoursDecimal(stats.totalMinutes), alignment: "right", bold: true },
+                  ],
+                ],
+              },
+              layout: tableLayout,
+            },
+            { text: t.details, fontSize: 12, bold: true, margin: [0, 20, 0, 6] },
+            {
+              table: {
+                headerRows: 1,
+                dontBreakRows: true,
+                widths: ["auto", 95, "auto", "auto", "auto", "*"],
+                body: [
+                  [head(t.date), head(t.site), head(t.hours), head(t.break, "right"), head(t.timeDecimal, "right"), head(t.description)],
+                  ...detailRows,
+                ],
+              },
+              layout: tableLayout,
+            },
+          ]),
+    ],
+  };
+
+  pdfMake.createPdf(docDefinition as unknown as Parameters<typeof pdfMake.createPdf>[0]).download(fileName(input, "pdf"));
 }
 
-export function exportLogsToPdf(
-  logs: WorkLog[],
-  projects: Project[],
-  rangeLabel: string,
-  language: ReportLanguage,
-): void {
-  const projectById = new Map(projects.map((project) => [project.id, project]));
-  const totalMinutes = logs.reduce((sum, log) => sum + log.durationMinutes, 0);
-  const lines = [
-    "Remmark",
-    `Raport: ${rangeLabel}`,
-    `Lacznie: ${formatDuration(totalMinutes)}`,
-    "",
-  ];
-
-  logs.forEach((log) => {
-    const project = projectById.get(log.projectId);
-    const date = log.date?.toDate ? formatShortDate(log.date.toDate()) : log.dateKey;
-    const description = language === "nl" ? log.descriptionNL || log.descriptionPL : log.descriptionPL;
-    lines.push(`${project?.name ?? "Bez nazwy"} - ${project?.client ?? ""}`);
-    lines.push(`${date}   ${log.startTime}-${log.endTime}   ${formatDuration(log.durationMinutes)}`);
-    wrapText(description || "-", 92).forEach((line) => lines.push(line));
-    lines.push("");
-  });
-
-  const pdf = buildSimplePdf(lines);
-  downloadBlob(new Blob([pdf], { type: "application/pdf" }), "remmark-raport.pdf");
+function csvEscape(value: string | number | undefined): string {
+  const normalized = String(value ?? "");
+  return `"${normalized.replaceAll('"', '""')}"`;
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -59,97 +255,8 @@ function downloadBlob(blob: Blob, filename: string): void {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
-}
-
-function wrapText(text: string, maxLength: number): string[] {
-  const normalized = stripDiacritics(text);
-  const words = normalized.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let current = "";
-
-  words.forEach((word) => {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length > maxLength && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = next;
-    }
-  });
-
-  if (current) lines.push(current);
-  return lines.length ? lines : ["-"];
-}
-
-function buildSimplePdf(lines: string[]): ArrayBuffer {
-  const pageLineLimit = 46;
-  const pages: string[][] = [];
-  for (let index = 0; index < lines.length; index += pageLineLimit) {
-    pages.push(lines.slice(index, index + pageLineLimit));
-  }
-
-  const objects: string[] = [];
-  const pageObjectIds: number[] = [];
-  const contentObjectIds: number[] = [];
-
-  objects.push("<< /Type /Catalog /Pages 2 0 R >>");
-  objects.push("");
-  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-
-  pages.forEach((pageLines, pageIndex) => {
-    const pageObjectId = objects.length + 1;
-    const contentObjectId = pageObjectId + 1;
-    pageObjectIds.push(pageObjectId);
-    contentObjectIds.push(contentObjectId);
-    objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>`,
-    );
-    objects.push(createContentStream(pageLines, pageIndex));
-  });
-
-  objects[1] = `<< /Type /Pages /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageObjectIds.length} >>`;
-
-  const chunks = ["%PDF-1.4\n"];
-  const offsets = [0];
-  objects.forEach((object, index) => {
-    offsets.push(byteLength(chunks.join("")));
-    chunks.push(`${index + 1} 0 obj\n${object}\nendobj\n`);
-  });
-
-  const xrefOffset = byteLength(chunks.join(""));
-  chunks.push(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`);
-  offsets.slice(1).forEach((offset) => {
-    chunks.push(`${String(offset).padStart(10, "0")} 00000 n \n`);
-  });
-  chunks.push(`trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
-
-  const encoded = new TextEncoder().encode(chunks.join(""));
-  const buffer = new ArrayBuffer(encoded.byteLength);
-  new Uint8Array(buffer).set(encoded);
-  return buffer;
-}
-
-function createContentStream(lines: string[], pageIndex: number): string {
-  const body = lines
-    .map((line, index) => {
-      const y = 800 - index * 16;
-      const fontSize = pageIndex === 0 && index === 0 ? 18 : 10;
-      return `BT /F1 ${fontSize} Tf 40 ${y} Td (${pdfEscape(stripDiacritics(line))}) Tj ET`;
-    })
-    .join("\n");
-  return `<< /Length ${byteLength(body)} >>\nstream\n${body}\nendstream`;
-}
-
-function pdfEscape(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
-}
-
-function stripDiacritics(value: string): string {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ł/g, "l").replace(/Ł/g, "L");
-}
-
-function byteLength(value: string): number {
-  return new TextEncoder().encode(value).length;
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

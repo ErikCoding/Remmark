@@ -1,54 +1,27 @@
 import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 import { classNames } from "@/lib/utils/text";
 
-type FieldProps = {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-};
+const control =
+  "min-h-12 w-full min-w-0 rounded-xl border border-line bg-card px-3.5 py-2.5 text-[17px] text-ink outline-none transition placeholder:text-[#98a2ab] focus:border-ink focus:ring-2 focus:ring-ink/10";
 
-export function Field({ label, error, children }: FieldProps) {
+export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label className="block space-y-2.5">
-      <span className="text-[13px] font-bold text-slate-700">{label}</span>
+    <label className="block">
+      <span className="mb-1.5 block text-[15px] font-semibold text-ink">{label}</span>
       {children}
-      {error ? <span className="block text-sm text-danger">{error}</span> : null}
+      {hint ? <span className="mt-1.5 block text-sm text-steel">{hint}</span> : null}
     </label>
   );
 }
 
-export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      className={classNames(
-        "min-h-12 w-full min-w-0 rounded-xl border border-line bg-white/95 px-3.5 py-3 text-base text-ink shadow-[0_1px_0_rgba(15,23,42,0.03)] outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100",
-        props.className,
-      )}
-      {...props}
-    />
-  );
+export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={classNames(control, className)} {...props} />;
 }
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      className={classNames(
-        "min-h-12 w-full min-w-0 rounded-xl border border-line bg-white/95 px-3.5 py-3 text-base text-ink shadow-[0_1px_0_rgba(15,23,42,0.03)] outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100",
-        props.className,
-      )}
-      {...props}
-    />
-  );
+export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={classNames(control, "pr-9", className)} {...props} />;
 }
 
-export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      className={classNames(
-        "min-h-28 w-full min-w-0 resize-y rounded-xl border border-line bg-white/95 px-3.5 py-3 text-base text-ink shadow-[0_1px_0_rgba(15,23,42,0.03)] outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100",
-        props.className,
-      )}
-      {...props}
-    />
-  );
+export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className={classNames(control, "min-h-24 resize-y leading-snug", className)} {...props} />;
 }

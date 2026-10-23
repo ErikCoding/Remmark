@@ -32,6 +32,9 @@ export interface WorkLog {
   dateKey: string;
   startTime: string;
   endTime: string;
+  /** Przerwa w minutach. Starsze wpisy mogą jej nie mieć (= 0). */
+  breakMinutes?: number;
+  /** Czas pracy netto (bez przerwy) w minutach. */
   durationMinutes: number;
   descriptionPL: string;
   descriptionNL?: string;
@@ -41,22 +44,33 @@ export interface WorkLog {
   updatedAt?: Timestamp;
 }
 
+/** Miejsce pracy wybrane lub wpisane przez użytkownika. Nowa nazwa bez projectId tworzy budowę przy zapisie. */
+export interface Place {
+  projectId?: string | null;
+  name: string;
+}
+
+/** Odcinek trwającego dnia pracy: od kiedy jest się w danym miejscu. */
+export interface TimerSegment {
+  place?: Place | null;
+  startMs: number;
+  breakMinutes: number;
+}
+
 export interface ActiveTimer {
   id: string;
   userId: string;
-  projectId: string;
   startedAt: Timestamp;
   startTime: string;
   dateKey: string;
+  segments?: TimerSegment[];
+  /** Gdy trwa przerwa – kiedy się zaczęła (ms od epoki). */
+  breakStartedAtMs?: number | null;
+  /** Pola ze starszej wersji (jedna budowa na licznik). */
+  projectId?: string;
+  breakMinutes?: number;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
-}
-
-export interface ProjectStats {
-  projectId: string;
-  visits: number;
-  totalMinutes: number;
-  lastVisitDate?: Timestamp;
 }
 
 export interface DateRange {

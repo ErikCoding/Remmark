@@ -1,19 +1,12 @@
 {
-  "name": "Remmark",
+  "name": "Remmark – dziennik pracy",
   "short_name": "Remmark",
-  "description": "Logowanie pracy na budowach Remmark.",
+  "description": "Codzienne wpisy z budowy: godziny, przerwy, raporty.",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#F8FAFC",
-  "theme_color": "#2563EB",
+  "background_color": "#E9ECEE",
+  "theme_color": "#E9ECEE",
   "orientation": "portrait-primary",
-  "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ]
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
 }

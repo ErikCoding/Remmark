@@ -4,30 +4,22 @@
 
 :root {
   color-scheme: light;
-  background: #f4f7fb;
-  color: #121826;
   --safe-bottom: env(safe-area-inset-bottom);
 }
 
-* {
-  box-sizing: border-box;
-}
-
 html {
-  min-height: 100%;
-  background: #f4f7fb;
+  background: #e9ecee;
 }
 
 body {
-  min-height: 100%;
   margin: 0;
-  background:
-    radial-gradient(circle at 20% 0%, rgba(59, 130, 246, 0.08), transparent 32rem),
-    linear-gradient(180deg, #f8fbff 0%, #f4f7fb 42%, #eef3f8 100%);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  letter-spacing: 0;
-  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  background: #e9ecee;
+  color: #1f2830;
+  font-family: Barlow, ui-sans-serif, system-ui, sans-serif;
+  font-size: 17px;
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
 }
 
 button,
@@ -35,64 +27,52 @@ input,
 select,
 textarea {
   font: inherit;
+  color: inherit;
 }
 
 button {
   -webkit-tap-highlight-color: transparent;
 }
 
+:focus-visible {
+  outline: 3px solid #f0641e;
+  outline-offset: 2px;
+}
+
+input[type="date"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 ::selection {
-  background: #bfdbfe;
-  color: #111827;
+  background: #fdebdf;
 }
 
 @layer components {
-  .surface {
-    @apply rounded-[1.4rem] border border-white/80 bg-white/[0.92] shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur;
+  .panel {
+    @apply rounded-box border border-line bg-card;
   }
 
-  .surface-flat {
-    @apply rounded-[1.35rem] border border-slate-200/80 bg-white;
+  .section-title {
+    @apply text-lg font-bold text-ink;
   }
 
-  .tool-panel {
-    @apply rounded-[1.35rem] border border-slate-200/80 bg-white/85 p-3 shadow-[0_12px_34px_rgba(15,23,42,0.05)] backdrop-blur;
+  .chip {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line bg-card px-4 text-base font-semibold text-ink transition-colors;
   }
 
-  .soft-tile {
-    @apply rounded-2xl border border-slate-200/75 bg-slate-50/80;
-  }
-
-  .eyebrow {
-    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500;
-  }
-
-  .tap-highlight {
-    @apply transition active:scale-[0.99];
+  .chip-on {
+    @apply border-ink bg-ink text-white;
   }
 }
 
-@keyframes voice-wave {
-  0%,
-  100% {
-    transform: scaleY(0.35);
-    opacity: 0.55;
-  }
-
-  50% {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
-
-@keyframes mobile-add-pulse {
-  0%,
-  100% {
-    box-shadow: 0 18px 34px rgba(18, 24, 38, 0.24);
-  }
-
-  50% {
-    box-shadow: 0 22px 42px rgba(37, 99, 235, 0.24);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -101,7 +81,13 @@ button {
     display: none !important;
   }
 
-  body {
+  body,
+  html {
     background: #fff;
+  }
+
+  .print-flat {
+    border: 0 !important;
+    padding: 0 !important;
   }
 }

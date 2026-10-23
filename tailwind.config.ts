@@ -4,26 +4,28 @@ const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
-      colors: {
-        ink: "#121826",
-        muted: "#64748B",
-        line: "#DDE5EF",
-        paper: "#F4F7FB",
-        brand: {
-          50: "#EFF6FF",
-          100: "#DBEAFE",
-          500: "#3B82F6",
-          600: "#2563EB",
-          700: "#1D4ED8",
-          900: "#172554"
-        },
-        success: "#16803C",
-        warning: "#B45309",
-        danger: "#B91C1C"
+      fontFamily: {
+        sans: ["Barlow", "ui-sans-serif", "system-ui", "sans-serif"],
+        cond: ["'Barlow Condensed'", "Barlow", "ui-sans-serif", "sans-serif"],
       },
-      boxShadow: {
-        soft: "0 12px 30px rgba(15, 23, 42, 0.08)"
-      }
+      colors: {
+        concrete: "#E9ECEE",
+        card: "#FFFFFF",
+        ink: "#1F2830",
+        steel: "#5C6873",
+        line: "#D2D8DD",
+        well: "#F3F5F6",
+        vis: {
+          DEFAULT: "#F0641E",
+          dark: "#C94E0F",
+          soft: "#FDEBDF",
+        },
+        go: { DEFAULT: "#1E7A4C", soft: "#E1F2E8" },
+        stop: { DEFAULT: "#B4261E", soft: "#FBE4E2" },
+      },
+      borderRadius: {
+        box: "14px",
+      },
     },
   },
   plugins: [],

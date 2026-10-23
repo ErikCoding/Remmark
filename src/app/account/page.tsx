@@ -1,36 +1,49 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { useAuth } from "@/context/auth-context";
-import { initials } from "@/lib/utils/text";
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, profile, logout, changePassword } = useAuth();
+  const { user, profile, logout, changePassword, updateName } = useAuth();
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [nameMessage, setNameMessage] = useState<string | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  async function handleLogout() {
-    await logout();
-    router.replace("/login");
+  useEffect(() => {
+    if (profile?.name) setName(profile.name);
+  }, [profile?.name]);
+
+  async function handleName(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setNameMessage(null);
+    try {
+      await updateName(name);
+      setNameMessage("Zapisano.");
+    } catch (nameError) {
+      setError(nameError instanceof Error ? nameError.message : "Nie udało się zapisać.");
+    }
   }
 
   async function handlePassword(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
     setError(null);
-    setMessage(null);
+    setPasswordMessage(null);
     try {
       await changePassword(password);
       setPassword("");
-      setMessage("Hasło zostało zmienione.");
+      setPasswordMessage("Hasło zmienione.");
     } catch (passwordError) {
       setError(passwordError instanceof Error ? passwordError.message : "Nie udało się zmienić hasła.");
     } finally {
@@ -40,36 +53,49 @@ export default function AccountPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Konto" subtitle="Profil użytkownika i ustawienia sesji." />
-      <div className="space-y-5">
-        <section className="surface-flat p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-xl font-black text-ink">
-              {initials(profile?.name || user?.email)}
-            </span>
-            <div>
-              <h2 className="font-bold text-ink">{profile?.name ?? "Użytkownik Remmark"}</h2>
-              <p className="text-sm text-muted">{profile?.email || user?.email}</p>
-            </div>
+      <PageHeader title="Konto" subtitle={user?.email ?? undefined} />
+      <div className="space-y-6">
+        {error ? <p className="rounded-xl bg-stop-soft px-3 py-2 text-[15px] font-semibold text-stop">{error}</p> : null}
+
+        <form className="panel space-y-3 p-4" onSubmit={handleName}>
+          <Field hint="Pojawia się na raportach PDF." label="Imię i nazwisko">
+            <Input value={name} onChange={(event) => setName(event.target.value)} />
+          </Field>
+          <div className="flex items-center gap-3">
+            <Button type="submit">Zapisz</Button>
+            {nameMessage ? <span className="text-[15px] font-semibold text-go">{nameMessage}</span> : null}
           </div>
-          <Button className="mt-5" variant="secondary" onClick={handleLogout} full>
-            Wyloguj się
-          </Button>
-        </section>
-        <form className="surface-flat p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]" onSubmit={handlePassword}>
-          <h2 className="font-black text-ink">Zmiana hasła</h2>
-          <p className="mt-1 text-sm font-medium leading-6 text-muted">Firebase może wymagać świeżego logowania przed zmianą hasła.</p>
-          {message ? <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-success">{message}</p> : null}
-          {error ? <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-danger">{error}</p> : null}
-          <div className="mt-4">
-            <Field label="Nowe hasło">
-              <Input minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-            </Field>
-          </div>
-          <Button className="mt-4" disabled={saving || password.length < 8}>
-            {saving ? "Zapisywanie..." : "Zmień hasło"}
-          </Button>
         </form>
+
+        <form className="panel space-y-3 p-4" onSubmit={handlePassword}>
+          <Field hint="Minimum 8 znaków. Czasem trzeba się najpierw wylogować i zalogować ponownie." label="Nowe hasło">
+            <Input autoComplete="new-password" minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+          </Field>
+          <div className="flex items-center gap-3">
+            <Button disabled={saving || password.length < 8} type="submit">
+              {saving ? "Zmieniam…" : "Zmień hasło"}
+            </Button>
+            {passwordMessage ? <span className="text-[15px] font-semibold text-go">{passwordMessage}</span> : null}
+          </div>
+        </form>
+
+        <section className="panel p-4 text-[15px] leading-snug text-steel">
+          <p className="mb-1 font-semibold text-ink">Ikona na ekranie telefonu</p>
+          <p>iPhone: w Safari dotknij „Udostępnij”, potem „Do ekranu początkowego”.</p>
+          <p>Android: w Chrome dotknij menu (trzy kropki), potem „Dodaj do ekranu głównego”.</p>
+        </section>
+
+        <Button
+          full
+          variant="secondary"
+          onClick={async () => {
+            await logout();
+            router.replace("/login");
+          }}
+        >
+          <LogOut className="h-5 w-5" />
+          Wyloguj się
+        </Button>
       </div>
     </AppShell>
   );

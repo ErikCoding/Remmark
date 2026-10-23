@@ -2,18 +2,27 @@
 
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { Field, Input, Textarea } from "@/components/ui/field";
 import { createProject, updateProject } from "@/lib/services/projects";
+import { classNames } from "@/lib/utils/text";
 import type { Project, ProjectStatus } from "@/types/domain";
+
+const statuses: Array<{ value: ProjectStatus; label: string }> = [
+  { value: "active", label: "W toku" },
+  { value: "paused", label: "Wstrzymana" },
+  { value: "completed", label: "Zakończona" },
+];
 
 export function ProjectForm({
   project,
   compact,
   onSaved,
+  onCancel,
 }: {
   project?: Project;
   compact?: boolean;
   onSaved?: (projectId: string) => void;
+  onCancel?: () => void;
 }) {
   const [name, setName] = useState(project?.name ?? "");
   const [client, setClient] = useState(project?.client ?? "");
@@ -26,66 +35,86 @@ export function ProjectForm({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    event.stopPropagation();
     setError(null);
-
-    if (!name.trim() || !client.trim() || !address.trim()) {
-      setError("Nazwa, klient i adres są wymagane.");
+    if (!name.trim()) {
+      setError("Wpisz nazwę budowy.");
       return;
     }
 
     setSaving(true);
     try {
-      const payload = { name, client, address, projectNumber, status, notes };
+      const payload = {
+        name: name.trim(),
+        client: client.trim(),
+        address: address.trim(),
+        projectNumber: projectNumber.trim(),
+        status,
+        notes: notes.trim(),
+      };
       if (project) {
         await updateProject(project.id, payload);
         onSaved?.(project.id);
       } else {
-        const projectId = await createProject(payload);
-        onSaved?.(projectId);
-        setName("");
-        setClient("");
-        setAddress("");
-        setProjectNumber("");
-        setStatus("active");
-        setNotes("");
+        onSaved?.(await createProject(payload));
       }
     } catch {
-      setError("Nie udało się zapisać budowy.");
+      setError("Nie udało się zapisać budowy. Sprawdź internet i spróbuj jeszcze raz.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <form className="surface-flat space-y-4 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]" onSubmit={handleSubmit}>
-      {error ? <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-danger">{error}</p> : null}
-      <div className={compact ? "space-y-4" : "grid gap-4 md:grid-cols-2"}>
-        <Field label="Nazwa budowy">
-          <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Amsterdam - Keizersgracht 52" />
+    <form className={classNames("panel space-y-4 p-4", compact && "border-ink")} onSubmit={handleSubmit}>
+      {compact ? <p className="section-title">Nowa budowa</p> : null}
+      {error ? <p className="rounded-xl bg-stop-soft px-3 py-2 text-[15px] font-semibold text-stop">{error}</p> : null}
+      <Field label="Nazwa budowy">
+        <Input autoFocus={compact} value={name} onChange={(event) => setName(event.target.value)} placeholder="np. Kowalscy – łazienka" />
+      </Field>
+      <div className={classNames("grid gap-4", !compact && "sm:grid-cols-2")}>
+        <Field label="Klient (opcjonalnie)">
+          <Input value={client} onChange={(event) => setClient(event.target.value)} placeholder="Imię, nazwisko lub firma" />
         </Field>
-        <Field label="Klient">
-          <Input value={client} onChange={(event) => setClient(event.target.value)} placeholder="Nazwa klienta" />
-        </Field>
-        <Field label="Adres">
+        <Field label="Adres (opcjonalnie)">
           <Input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="Ulica, miasto" />
         </Field>
-        <Field label="Numer projektu">
-          <Input value={projectNumber} onChange={(event) => setProjectNumber(event.target.value)} placeholder="Opcjonalnie" />
-        </Field>
-        <Field label="Status">
-          <Select value={status} onChange={(event) => setStatus(event.target.value as ProjectStatus)}>
-            <option value="active">Aktywna</option>
-            <option value="paused">Wstrzymana</option>
-            <option value="completed">Zakończona</option>
-          </Select>
-        </Field>
       </div>
-      <Field label="Notatki">
-        <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Opcjonalne informacje o budowie" />
-      </Field>
-      <Button disabled={saving} full={compact}>
-        {saving ? "Zapisywanie..." : project ? "Zapisz zmiany" : "Dodaj budowę"}
-      </Button>
+      {!compact ? (
+        <>
+          <Field label="Numer zlecenia (opcjonalnie)">
+            <Input value={projectNumber} onChange={(event) => setProjectNumber(event.target.value)} />
+          </Field>
+          <div>
+            <p className="mb-1.5 text-[15px] font-semibold text-ink">Status</p>
+            <div className="flex flex-wrap gap-2">
+              {statuses.map((item) => (
+                <button
+                  className={classNames("chip", status === item.value && "chip-on")}
+                  key={item.value}
+                  onClick={() => setStatus(item.value)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Field label="Notatki (opcjonalnie)">
+            <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Kod do bramy, telefon, materiały…" />
+          </Field>
+        </>
+      ) : null}
+      <div className="flex gap-2">
+        <Button className="flex-1" disabled={saving} type="submit">
+          {saving ? "Zapisuję…" : project ? "Zapisz zmiany" : "Dodaj budowę"}
+        </Button>
+        {onCancel ? (
+          <Button variant="secondary" onClick={onCancel}>
+            Anuluj
+          </Button>
+        ) : null}
+      </div>
     </form>
   );
 }

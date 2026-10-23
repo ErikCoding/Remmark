@@ -9,7 +9,7 @@ import {
   updatePassword,
   type User,
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { auth, db, firebaseReady } from "@/lib/firebase/client";
 import { friendlyAuthError } from "@/lib/firebase/errors";
@@ -23,6 +23,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (password: string) => Promise<void>;
+  updateName: (name: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -104,9 +105,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user],
   );
 
+  const updateName = useCallback(
+    async (name: string) => {
+      if (!user) throw new Error("Zaloguj się ponownie.");
+      const trimmed = name.trim();
+      if (!trimmed) throw new Error("Wpisz imię i nazwisko.");
+      await updateDoc(doc(db, "users", user.uid), { name: trimmed });
+      setProfile((current) => (current ? { ...current, name: trimmed } : current));
+    },
+    [user],
+  );
+
   const value = useMemo(
-    () => ({ user, profile, loading, error, login, logout, changePassword }),
-    [changePassword, error, loading, login, logout, profile, user],
+    () => ({ user, profile, loading, error, login, logout, changePassword, updateName }),
+    [changePassword, error, loading, login, logout, profile, updateName, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

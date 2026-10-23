@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { LockKeyhole, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
@@ -24,7 +23,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       router.replace("/dashboard");
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "Nie udało się zalogować.");
@@ -34,31 +33,34 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <section className="surface w-full max-w-md p-6 md:p-7">
-        <div className="mb-8 flex items-center gap-4">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ink text-2xl font-black text-white shadow-[0_18px_34px_rgba(18,24,38,0.22)]">R</span>
-          <div>
-            <h1 className="text-2xl font-black text-ink">Remmark</h1>
-            <p className="mt-1 text-sm font-semibold text-muted">Prywatny panel logów budowy</p>
-          </div>
+    <main className="flex min-h-screen flex-col justify-center px-4 py-10">
+      <div className="mx-auto w-full max-w-sm">
+        <div className="mb-8">
+          <span className="relative mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-ink font-cond text-3xl font-bold text-white">
+            R
+            <span className="absolute inset-x-2.5 bottom-2 h-1 rounded-full bg-vis" />
+          </span>
+          <h1 className="font-cond text-[40px] font-bold leading-none text-ink">Remmark</h1>
+          <p className="mt-2 text-[17px] text-steel">Dziennik pracy na budowie</p>
         </div>
         <form className="space-y-4" onSubmit={handleSubmit}>
-          {(error || authError) ? (
-            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-danger">{error || authError}</p>
+          {error || authError ? (
+            <p className="rounded-xl bg-stop-soft px-3 py-2 text-[15px] font-semibold text-stop" role="alert">
+              {error || authError}
+            </p>
           ) : null}
           <Field label="Email">
-            <Input autoComplete="email" inputMode="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <Input autoComplete="email" inputMode="email" required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </Field>
           <Field label="Hasło">
-            <Input autoComplete="current-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+            <Input autoComplete="current-password" required type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
           </Field>
-          <Button className="mt-2" disabled={loading} full>
-            {loading ? <LockKeyhole className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-            {loading ? "Logowanie..." : "Zaloguj się"}
+          <Button className="!mt-6" disabled={loading} full size="lg" type="submit" variant="vis">
+            {loading ? "Loguję…" : "Zaloguj się"}
           </Button>
         </form>
-      </section>
+        <p className="mt-6 text-sm text-steel">Aplikacja zapamięta logowanie na tym telefonie.</p>
+      </div>
     </main>
   );
 }

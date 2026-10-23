@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type SpeechRecognitionResultItem = {
   transcript: string;
@@ -23,6 +23,7 @@ type SpeechRecognitionLike = {
   onerror: (() => void) | null;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   start: () => void;
+  stop: () => void;
 };
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
@@ -35,6 +36,7 @@ type WindowWithSpeech = Window & {
 export function useSpeechRecognition(onResult: (text: string) => void) {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
+  const instance = useRef<SpeechRecognitionLike | null>(null);
 
   const Recognition = useMemo(() => {
     if (typeof window === "undefined") return undefined;
@@ -62,8 +64,18 @@ export function useSpeechRecognition(onResult: (text: string) => void) {
         .join(" ");
       if (transcript) onResult(transcript);
     };
-    recognition.start();
+    instance.current = recognition;
+    try {
+      recognition.start();
+    } catch {
+      setListening(false);
+    }
   }
 
-  return { supported, listening, start };
+  function stop() {
+    instance.current?.stop();
+    setListening(false);
+  }
+
+  return { supported, listening, start, stop };
 }

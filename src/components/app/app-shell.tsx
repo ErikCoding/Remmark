@@ -1,116 +1,81 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, BriefcaseBusiness, CirclePlus, Home, ShieldCheck, UserRound } from "lucide-react";
+import { BarChart3, CalendarDays, HardHat, Sun, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { AuthGate } from "@/components/app/auth-gate";
-import { classNames } from "@/lib/utils/text";
+import { useAuth } from "@/context/auth-context";
+import { classNames, initials } from "@/lib/utils/text";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/projects", label: "Budowy", icon: BriefcaseBusiness },
-  { href: "/logs/new", label: "Dodaj", icon: CirclePlus },
+  { href: "/dashboard", label: "Dziś", icon: Sun },
+  { href: "/history", label: "Historia", icon: CalendarDays },
   { href: "/reports", label: "Raporty", icon: BarChart3 },
-  { href: "/account", label: "Konto", icon: UserRound },
+  { href: "/projects", label: "Budowy", icon: HardHat },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
   const pathname = usePathname();
-  const activeIndex = Math.max(
-    navItems.findIndex((item) => isActivePath(pathname, item.href)),
-    0,
-  );
+  const { profile, user } = useAuth();
 
   return (
     <AuthGate>
-      <div className="min-h-screen pb-24 md:pb-0">
-        <div className="mx-auto grid min-h-screen max-w-7xl md:grid-cols-[260px_1fr]">
-          <aside className="no-print sticky top-0 hidden h-screen border-r border-white/70 bg-white/80 px-4 py-6 shadow-[12px_0_40px_rgba(15,23,42,0.04)] backdrop-blur-xl md:block">
-            <Link className="mb-8 flex items-center gap-3 rounded-2xl px-2" href="/dashboard">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ink text-lg font-black text-white shadow-[0_14px_30px_rgba(18,24,38,0.20)]">R</span>
-              <span>
-                <span className="block text-lg font-black leading-tight text-ink">Remmark</span>
-                <span className="block text-xs font-semibold text-muted">Worklog</span>
+      <div className="min-h-screen pb-[calc(5.5rem+var(--safe-bottom))] md:pb-10">
+        <header className="no-print sticky top-0 z-30 border-b border-line bg-concrete/95 backdrop-blur">
+          <div className={classNames("mx-auto flex h-14 items-center gap-4 px-4", wide ? "max-w-4xl" : "max-w-2xl")}>
+            <Link className="flex items-center gap-2" href="/dashboard" aria-label="Remmark – strona główna">
+              <span className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-ink font-cond text-xl font-bold text-white">
+                R
+                <span className="absolute inset-x-1.5 bottom-1 h-[3px] rounded-full bg-vis" />
               </span>
+              <span className="font-cond text-xl font-bold tracking-wide text-ink">Remmark</span>
             </Link>
-            <nav className="space-y-1.5">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActivePath(pathname, item.href);
-                const isAdd = item.href === "/logs/new";
-                return (
-                  <Link
-                    className={classNames(
-                      "group flex min-h-12 items-center gap-3 rounded-2xl px-3 text-sm font-bold text-muted transition hover:bg-slate-100/80 hover:text-ink",
-                      active && "bg-ink text-white shadow-[0_14px_30px_rgba(18,24,38,0.16)] hover:bg-ink hover:text-white",
-                      isAdd && !active && "mt-5 bg-brand-600 text-white shadow-[0_14px_30px_rgba(37,99,235,0.20)] hover:bg-brand-700 hover:text-white",
-                    )}
-                    href={item.href}
-                    key={item.href}
-                  >
-                    <Icon className="h-5 w-5" strokeWidth={2.2} />
-                    <span>{isAdd ? "Dodaj wpis" : item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-            <div className="absolute inset-x-4 bottom-6 rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-success" />
-                <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted">Tryb prywatny</p>
-              </div>
-              <p className="mt-2 text-sm font-bold leading-5 text-ink">Dane dostępne tylko po zalogowaniu.</p>
-            </div>
-          </aside>
-          <main className="min-w-0 px-4 py-5 md:px-8 md:py-8 lg:px-10">
-            <div className="mb-5 flex items-center justify-between rounded-2xl border border-white/80 bg-white/85 px-3 py-3 shadow-[0_12px_34px_rgba(15,23,42,0.06)] backdrop-blur md:hidden">
-              <Link className="flex items-center gap-3" href="/dashboard">
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-ink text-base font-black text-white">R</span>
-                <span>
-                  <span className="block text-base font-black leading-tight text-ink">Remmark</span>
-                  <span className="block text-[11px] font-bold uppercase tracking-[0.08em] text-muted">Worklog</span>
-                </span>
-              </Link>
-              <Link className="rounded-2xl bg-brand-600 px-3 py-2 text-sm font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.18)]" href="/logs/new">
-                Nowy
-              </Link>
-            </div>
-            <div className="mx-auto max-w-5xl">{children}</div>
-          </main>
-        </div>
-        <nav className="no-print fixed inset-x-0 bottom-0 z-20 border-t border-white/80 bg-white/92 px-2 pb-[calc(0.55rem+var(--safe-bottom))] pt-2 shadow-[0_-14px_38px_rgba(15,23,42,0.10)] backdrop-blur-xl md:hidden">
-          <div className="relative mx-auto grid max-w-md grid-cols-5 items-end gap-1 overflow-visible rounded-[1.65rem]">
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-1 top-1 z-0 w-1/5 rounded-[1.35rem] bg-slate-100/95 shadow-[0_10px_22px_rgba(15,23,42,0.07)] transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)]"
-              style={{ transform: `translateX(${activeIndex * 100}%)` }}
-            />
-            {navItems.map((item) => {
-              const active = isActivePath(pathname, item.href);
-              const isAdd = item.href === "/logs/new";
-              const Icon = item.icon;
-              return (
+            <nav className="ml-4 hidden flex-1 items-center gap-1 md:flex">
+              {navItems.map((item) => (
                 <Link
-                  aria-label={isAdd ? "Dodaj wpis" : item.label}
                   className={classNames(
-                    "relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold text-muted transition duration-300 ease-[cubic-bezier(.2,.8,.2,1)]",
-                    active && "text-ink",
-                    isAdd && "-mt-7",
+                    "rounded-lg px-3 py-2 text-[15px] font-semibold text-steel hover:text-ink",
+                    isActive(pathname, item.href) && "bg-card text-ink shadow-[inset_0_0_0_1px_#D2D8DD]",
                   )}
                   href={item.href}
                   key={item.href}
                 >
-                  <span
-                    className={classNames(
-                      "flex h-8 w-8 items-center justify-center rounded-xl transition duration-300 ease-[cubic-bezier(.2,.8,.2,1)]",
-                      active && !isAdd && "-translate-y-0.5 scale-110",
-                      isAdd && "h-14 w-14 rounded-2xl bg-ink text-white shadow-[0_18px_34px_rgba(18,24,38,0.24)]",
-                      isAdd && active && "-translate-y-0.5 scale-105 ring-4 ring-slate-200",
-                    )}
-                  >
-                    <Icon className={classNames("transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)]", isAdd ? "h-7 w-7" : "h-5 w-5", active && "scale-105")} strokeWidth={2.25} />
-                  </span>
-                  {!isAdd ? <span className={classNames("transition duration-300 ease-[cubic-bezier(.2,.8,.2,1)]", active && "-translate-y-0.5 font-black")}>{item.label}</span> : null}
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            <Link
+              aria-label="Konto"
+              className={classNames(
+                "ml-auto flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card text-sm font-bold text-ink",
+                pathname.startsWith("/account") && "border-ink",
+              )}
+              href="/account"
+            >
+              {profile?.name || user?.email ? initials(profile?.name || user?.email) : <UserRound className="h-5 w-5" />}
+            </Link>
+          </div>
+        </header>
+
+        <main className={classNames("mx-auto px-4 pt-5", wide ? "max-w-4xl" : "max-w-2xl")}>{children}</main>
+
+        <nav className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card pb-[var(--safe-bottom)] md:hidden">
+          <div className="mx-auto grid max-w-md grid-cols-4">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(pathname, item.href);
+              return (
+                <Link
+                  className={classNames(
+                    "relative flex min-h-[64px] flex-col items-center justify-center gap-1 text-[13px] font-semibold",
+                    active ? "text-ink" : "text-steel",
+                  )}
+                  href={item.href}
+                  key={item.href}
+                >
+                  {active ? <span className="absolute inset-x-6 top-0 h-[3px] rounded-b bg-vis" /> : null}
+                  <Icon className="h-6 w-6" strokeWidth={active ? 2.4 : 2} />
+                  {item.label}
                 </Link>
               );
             })}
@@ -121,11 +86,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function isActivePath(pathname: string, href: string): boolean {
-  if (href === "/dashboard") return pathname === "/" || pathname === "/dashboard";
-  if (href === "/logs/new") return pathname === "/logs/new";
-  if (href === "/projects") return pathname.startsWith("/projects");
-  if (href === "/reports") return pathname.startsWith("/reports");
-  if (href === "/account") return pathname.startsWith("/account");
-  return pathname === href;
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/dashboard") return pathname === "/" || pathname === "/dashboard" || pathname.startsWith("/dzien") || pathname.startsWith("/logs");
+  if (href === "/history") return pathname.startsWith("/history");
+  return pathname.startsWith(href);
 }

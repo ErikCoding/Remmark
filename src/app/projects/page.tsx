@@ -9,79 +9,87 @@ import { ProjectForm } from "@/components/projects/project-form";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/field";
+import { SkeletonList } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
 import { useProjects } from "@/hooks/use-projects";
 import { useRangeLogs } from "@/hooks/use-range-logs";
 import { todayKey } from "@/lib/utils/date";
-import type { ProjectStats, ProjectStatus } from "@/types/domain";
+import { classNames } from "@/lib/utils/text";
+
+type Filter = "open" | "all";
 
 export default function ProjectsPage() {
   const { user } = useAuth();
-  const { projects } = useProjects();
-  const { logs } = useRangeLogs(user?.uid, { from: "2020-01-01", to: todayKey() });
+  const { projects, loading } = useProjects();
+  const { logs } = useRangeLogs(user?.uid, { from: "2000-01-01", to: todayKey() });
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<ProjectStatus | "all">("all");
-  const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState<Filter>("open");
+  const [adding, setAdding] = useState(false);
 
   const stats = useMemo(() => {
-    const map = new Map<string, ProjectStats>();
+    const map = new Map<string, { minutes: number; last?: string }>();
     logs.forEach((log) => {
-      const current = map.get(log.projectId) ?? { projectId: log.projectId, visits: 0, totalMinutes: 0 };
+      const current = map.get(log.projectId) ?? { minutes: 0 };
       map.set(log.projectId, {
-        projectId: log.projectId,
-        visits: current.visits + 1,
-        totalMinutes: current.totalMinutes + log.durationMinutes,
-        lastVisitDate: current.lastVisitDate && current.lastVisitDate.seconds > log.date.seconds ? current.lastVisitDate : log.date,
+        minutes: current.minutes + log.durationMinutes,
+        last: !current.last || log.dateKey > current.last ? log.dateKey : current.last,
       });
     });
     return map;
   }, [logs]);
 
-  const filteredProjects = projects.filter((project) => {
-    const text = `${project.name} ${project.client} ${project.address}`.toLowerCase();
-    return text.includes(query.toLowerCase()) && (status === "all" || project.status === status);
-  });
+  const text = query.trim().toLowerCase();
+  const visible = projects.filter(
+    (project) =>
+      (filter === "all" || project.status !== "completed") &&
+      `${project.name} ${project.client} ${project.address}`.toLowerCase().includes(text),
+  );
+  const closedCount = projects.filter((project) => project.status === "completed").length;
 
   return (
     <AppShell>
       <PageHeader
         title="Budowy"
-        subtitle="Lista projektów, statusy i historia wizyt."
-        action={<Button onClick={() => setShowForm((visible) => !visible)}>{showForm ? "Zamknij" : <><Plus className="h-4 w-4" />Nowa</>}</Button>}
+        action={
+          !adding ? (
+            <Button onClick={() => setAdding(true)}>
+              <Plus className="h-5 w-5" />
+              Nowa
+            </Button>
+          ) : null
+        }
       />
-      <div className="space-y-4">
-        {showForm ? <ProjectForm onSaved={() => setShowForm(false)} /> : null}
-        <div className="tool-panel space-y-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <Input className="pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Szukaj po nazwie, kliencie lub adresie" />
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              { value: "all", label: "Wszystkie" },
-              { value: "active", label: "Aktywne" },
-              { value: "paused", label: "Wstrzymane" },
-              { value: "completed", label: "Zakończone" },
-            ].map((item) => (
-              <button
-                className={`min-h-11 rounded-xl px-3 text-sm font-black transition ${
-                  status === item.value ? "bg-ink text-white shadow-[0_12px_24px_rgba(18,24,38,0.16)]" : "bg-white text-muted hover:text-ink"
-                }`}
-                key={item.value}
-                onClick={() => setStatus(item.value as ProjectStatus | "all")}
-                type="button"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+
+      {adding ? (
+        <div className="mb-6">
+          <ProjectForm onCancel={() => setAdding(false)} onSaved={() => setAdding(false)} />
         </div>
-        {filteredProjects.length === 0 ? <EmptyState title="Brak budów" body="Dodaj pierwszą budowę, aby zacząć logować czas." /> : null}
-        <div className="grid gap-3 md:grid-cols-2">
-          {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} stats={stats.get(project.id)} />
-          ))}
-        </div>
+      ) : null}
+
+      <div className="relative mb-3">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-steel" />
+        <Input aria-label="Szukaj budowy" className="pl-11" placeholder="Szukaj po nazwie, kliencie, adresie" value={query} onChange={(event) => setQuery(event.target.value)} />
+      </div>
+      <div className="mb-5 grid grid-cols-2 gap-2">
+        <button className={classNames("chip", filter === "open" && "chip-on")} onClick={() => setFilter("open")} type="button">
+          W toku
+        </button>
+        <button className={classNames("chip", filter === "all" && "chip-on")} onClick={() => setFilter("all")} type="button">
+          Wszystkie{closedCount ? ` (+${closedCount} zakończ.)` : ""}
+        </button>
+      </div>
+
+      {loading ? <SkeletonList /> : null}
+      {!loading && visible.length === 0 ? (
+        <EmptyState
+          title={projects.length ? "Nic nie pasuje" : "Nie ma jeszcze budów"}
+          body={projects.length ? "Zmień wyszukiwanie albo pokaż wszystkie." : "Dodaj pierwszą budowę przyciskiem „Nowa”."}
+        />
+      ) : null}
+      <div className="space-y-2">
+        {visible.map((project) => (
+          <ProjectCard key={project.id} lastDateKey={stats.get(project.id)?.last} minutes={stats.get(project.id)?.minutes ?? 0} project={project} />
+        ))}
       </div>
     </AppShell>
   );
