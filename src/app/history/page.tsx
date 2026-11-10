@@ -13,6 +13,7 @@ import { SkeletonList } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
 import { useProjects } from "@/hooks/use-projects";
 import { useRangeLogs } from "@/hooks/use-range-logs";
+import { TRAVEL_GROUP, logGroupId } from "@/lib/services/logs";
 import { dateKeyToDate, endOfMonthKey, formatDayHeading, formatDuration, monthLabel, startOfMonthKey, todayKey } from "@/lib/utils/date";
 import type { WorkLog } from "@/types/domain";
 
@@ -40,7 +41,7 @@ export default function HistoryPage() {
     }
   }, []);
 
-  const filtered = logs.filter((log) => projectId === "all" || log.projectId === projectId);
+  const filtered = logs.filter((log) => projectId === "all" || logGroupId(log) === projectId);
   const total = filtered.reduce((sum, log) => sum + log.durationMinutes, 0);
   const days = useMemo(() => {
     const map = new Map<string, WorkLog[]>();
@@ -95,6 +96,7 @@ export default function HistoryPage() {
 
       <Select aria-label="Budowa" className="mb-6" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
         <option value="all">Wszystkie budowy</option>
+        <option value={TRAVEL_GROUP}>Tylko jazda</option>
         {projects.map((project) => (
           <option key={project.id} value={project.id}>
             {project.name}

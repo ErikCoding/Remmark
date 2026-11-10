@@ -17,12 +17,42 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { dateKeyToDate, minutesBetween, netMinutes, timeToMinutes } from "@/lib/utils/date";
-import type { DateRange, WorkLog } from "@/types/domain";
+import type { DateRange, Project, SegmentKind, WorkLog } from "@/types/domain";
 
 const logsCollection = collection(db, "logs");
 
+/** Klucz grupy dla jazdy w statystykach, filtrach i raportach. */
+export const TRAVEL_GROUP = "__jazda";
+export const TRAVEL_LABEL = "Jazda";
+
+export function isTravel(log: Pick<WorkLog, "kind">): boolean {
+  return log.kind === "travel";
+}
+
+/** Jazda, która nie liczy się do godzin – pomijana w raportach i statystykach. */
+export function isUnpaid(log: Pick<WorkLog, "kind" | "unpaid">): boolean {
+  return log.kind === "travel" && Boolean(log.unpaid);
+}
+
+/** Wpisy, które liczą się do godzin (do raportów i statystyk). */
+export function paidLogs<T extends Pick<WorkLog, "kind" | "unpaid">>(logs: T[]): T[] {
+  return logs.filter((log) => !isUnpaid(log));
+}
+
+/** Id do grupowania i filtrowania: budowa albo „jazda”. */
+export function logGroupId(log: Pick<WorkLog, "kind" | "projectId">): string {
+  return isTravel(log) ? TRAVEL_GROUP : log.projectId;
+}
+
+export function logPlaceName(log: Pick<WorkLog, "kind" | "projectId">, projectById: Map<string, Project>): string {
+  if (isTravel(log)) return TRAVEL_LABEL;
+  return projectById.get(log.projectId)?.name ?? "Usunięta budowa";
+}
+
 export type WorkLogInput = {
   projectId: string;
+  kind?: SegmentKind;
+  unpaid?: boolean;
   userId: string;
   dateKey: string;
   startTime: string;
@@ -138,7 +168,7 @@ export function getSavedLogDefaults(): LogDefaults {
 function rememberDefaults(input: WorkLogInput): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem("remmark:lastProjectId", input.projectId);
+    if (input.projectId && input.kind !== "travel") window.localStorage.setItem("remmark:lastProjectId", input.projectId);
     window.localStorage.setItem("remmark:lastStartTime", input.startTime);
     window.localStorage.setItem("remmark:lastEndTime", input.endTime);
     window.localStorage.setItem("remmark:lastBreak", String(input.breakMinutes || 0));
@@ -149,15 +179,19 @@ function rememberDefaults(input: WorkLogInput): void {
 
 function normalizeWorkLog(input: WorkLogInput) {
   const breakMinutes = Math.max(0, Math.round(input.breakMinutes || 0));
+  const travel = input.kind === "travel";
+  const unpaid = travel && Boolean(input.unpaid);
   return {
-    projectId: input.projectId,
+    projectId: travel ? "" : input.projectId,
+    kind: travel ? "travel" : "work",
+    unpaid,
     userId: input.userId,
     date: Timestamp.fromDate(dateKeyToDate(input.dateKey)),
     dateKey: input.dateKey,
     startTime: input.startTime,
     endTime: input.endTime,
-    breakMinutes,
-    durationMinutes: netMinutes(input.startTime, input.endTime, breakMinutes),
+    breakMinutes: unpaid ? 0 : breakMinutes,
+    durationMinutes: unpaid ? 0 : netMinutes(input.startTime, input.endTime, breakMinutes),
     descriptionPL: input.descriptionPL.trim(),
     descriptionNL: input.descriptionNL?.trim() ?? "",
     notes: input.notes?.trim() ?? "",
@@ -165,8 +199,8 @@ function normalizeWorkLog(input: WorkLogInput) {
   };
 }
 
-export function validateWorkLog(input: Pick<WorkLogInput, "projectId" | "dateKey" | "startTime" | "endTime" | "breakMinutes">): void {
-  if (!input.projectId) throw new Error("Wybierz budowę.");
+export function validateWorkLog(input: Pick<WorkLogInput, "projectId" | "kind" | "dateKey" | "startTime" | "endTime" | "breakMinutes">): void {
+  if (!input.projectId && input.kind !== "travel") throw new Error("Wybierz budowę.");
   if (!input.dateKey) throw new Error("Podaj datę.");
   const gross = minutesBetween(input.startTime, input.endTime);
   if (gross <= 0) throw new Error("Sprawdź godziny – start i koniec nie mogą być takie same.");
@@ -184,6 +218,8 @@ export async function fetchDayLogs(userId: string, dateKey: string): Promise<Wor
 
 export type DaySegmentInput = {
   id?: string;
+  kind?: SegmentKind;
+  unpaid?: boolean;
   projectId: string;
   startTime: string;
   endTime: string;
@@ -236,7 +272,7 @@ export async function saveDay(userId: string, dateKey: string, segments: DaySegm
   removedIds.forEach((id) => batch.delete(doc(db, "logs", id)));
   await batch.commit();
 
-  const last = [...segments].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const last = [...segments].filter((segment) => segment.kind !== "travel").sort((a, b) => a.startTime.localeCompare(b.startTime));
   if (last.length) {
     rememberDefaults({
       ...last[last.length - 1],

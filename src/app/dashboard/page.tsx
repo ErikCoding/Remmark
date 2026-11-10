@@ -12,6 +12,7 @@ import { SkeletonList } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
 import { useProjects } from "@/hooks/use-projects";
 import { useRangeLogs } from "@/hooks/use-range-logs";
+import { paidLogs } from "@/lib/services/logs";
 import { daysInRange, endOfWeekKey, formatDuration, formatLongDate, startOfWeekKey, todayKey, weekdayShort } from "@/lib/utils/date";
 
 export default function DashboardPage() {
@@ -35,7 +36,7 @@ export default function DashboardPage() {
   const todayLogs = logs.filter((log) => log.dateKey === today).sort((a, b) => a.startTime.localeCompare(b.startTime));
   const todayTotal = todayLogs.reduce((sum, log) => sum + log.durationMinutes, 0);
   const weekTotal = logs.reduce((sum, log) => sum + log.durationMinutes, 0);
-  const weekDaysWorked = new Set(logs.map((log) => log.dateKey)).size;
+  const weekDaysWorked = new Set(paidLogs(logs).map((log) => log.dateKey)).size;
   const bars = daysInRange(week).map((dateKey) => ({
     key: dateKey,
     label: weekdayShort(dateKey).replace(".", ""),

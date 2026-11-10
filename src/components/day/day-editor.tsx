@@ -2,18 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Car, Plus, Trash2 } from "lucide-react";
 import { SegmentCard, type SegmentState } from "@/components/day/segment-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { SkeletonList } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
-import { checkDay, fetchDayLogs, getSavedLogDefaults, logBreak, saveDay } from "@/lib/services/logs";
+import { checkDay, fetchDayLogs, getSavedLogDefaults, isTravel, logBreak, saveDay } from "@/lib/services/logs";
 import { getRecentPlaceIds, rememberPlaces, resolvePlaces } from "@/lib/services/places";
 import { cancelTimer, timerDraft } from "@/lib/services/timers";
 import { addDays, dateKeyToDate, formatDuration, formatLongDate, minutesBetween, netMinutes, timeToMinutes, todayKey } from "@/lib/utils/date";
 import { classNames } from "@/lib/utils/text";
-import type { ActiveTimer, Project } from "@/types/domain";
+import type { ActiveTimer, Project, SegmentKind } from "@/types/domain";
 
 const BREAKS = [0, 15, 30, 45, 60];
 let keySeed = 0;
@@ -74,7 +74,9 @@ export function DayEditor({
         const loaded: SegmentState[] = logs.map((log) => ({
           key: newKey(),
           id: log.id,
-          place: { projectId: log.projectId, name: projects.find((project) => project.id === log.projectId)?.name ?? "" },
+          kind: isTravel(log) ? "travel" : "work",
+          unpaid: isTravel(log) && Boolean(log.unpaid),
+          place: isTravel(log) ? null : { projectId: log.projectId, name: projects.find((project) => project.id === log.projectId)?.name ?? "" },
           startTime: log.startTime,
           endTime: log.endTime,
           breakMinutes: logBreak(log),
@@ -88,6 +90,8 @@ export function DayEditor({
         if (timer && key === timer.dateKey) {
           const fromTimer = timerDraft(timer).map<SegmentState>((segment) => ({
             key: newKey(),
+            kind: segment.kind,
+            unpaid: segment.unpaid,
             place: segment.place?.projectId
               ? { projectId: segment.place.projectId, name: projects.find((p) => p.id === segment.place?.projectId)?.name ?? segment.place.name }
               : segment.place,
@@ -108,6 +112,7 @@ export function DayEditor({
           next = [
             {
               key: newKey(),
+              kind: "work",
               place: initialProject ? { projectId: initialProject.id, name: initialProject.name } : null,
               startTime: defaults.startTime,
               endTime: defaults.endTime,
@@ -155,7 +160,7 @@ export function DayEditor({
     setSegments((current) => current.map((segment) => (segment.key === key ? { ...segment, ...patch } : segment)));
   }
 
-  function addSegment() {
+  function addSegment(kind: SegmentKind = "work") {
     dirty.current = true;
     setSegments((current) => {
       const last = current[current.length - 1];
@@ -164,18 +169,41 @@ export function DayEditor({
         ...current,
         {
           key: newKey(),
+          kind,
           place: null,
           startTime: start,
-          endTime: plusMinutes(start, 120),
+          endTime: plusMinutes(start, kind === "travel" ? 30 : 120),
           breakMinutes: 0,
           descriptionPL: "",
           descriptionNL: "",
           notes: "",
           photos: [],
-          autoFocus: true,
+          autoFocus: kind === "work",
         },
       ];
     });
+  }
+
+  /** Wstawia jazdę w lukę między dwoma odcinkami. */
+  function fillGapWithTravel(startTime: string, endTime: string) {
+    dirty.current = true;
+    setSegments((current) =>
+      [
+        ...current,
+        {
+          key: newKey(),
+          kind: "travel" as const,
+          place: null,
+          startTime,
+          endTime,
+          breakMinutes: 0,
+          descriptionPL: "",
+          descriptionNL: "",
+          notes: "",
+          photos: [],
+        },
+      ].sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    );
   }
 
   function removeSegment(key: string) {
@@ -184,17 +212,28 @@ export function DayEditor({
   }
 
   // Przerwa: albo wybrana dla całego dnia (odejmowana od najdłuższego miejsca), albo zapisana przy miejscach.
-  const longestKey = segments.reduce<SegmentState | undefined>(
+  const workSegments = segments.filter((segment) => segment.kind !== "travel");
+  const paidSegments = segments.filter((segment) => !segment.unpaid);
+  const longestKey = (workSegments.length ? workSegments : paidSegments).reduce<SegmentState | undefined>(
     (best, segment) => (!best || minutesBetween(segment.startTime, segment.endTime) > minutesBetween(best.startTime, best.endTime) ? segment : best),
     undefined,
   )?.key;
   const effective = segments.map((segment) => ({
     ...segment,
-    breakMinutes: breakOverride === null ? segment.breakMinutes : segment.key === longestKey ? breakOverride : 0,
+    breakMinutes: segment.unpaid ? 0 : breakOverride === null ? segment.breakMinutes : segment.key === longestKey ? breakOverride : 0,
   }));
+  const counted = (segment: SegmentState) => (segment.unpaid ? 0 : netMinutes(segment.startTime, segment.endTime, segment.breakMinutes));
   const totalBreak = effective.reduce((sum, segment) => sum + segment.breakMinutes, 0);
-  const totalNet = effective.reduce((sum, segment) => sum + netMinutes(segment.startTime, segment.endTime, segment.breakMinutes), 0);
-  const labelled = effective.map((segment, index) => ({ ...segment, label: segment.place?.name?.trim() || `Miejsce ${index + 1}` }));
+  const totalNet = effective.reduce((sum, segment) => sum + counted(segment), 0);
+  const travelMinutes = effective.filter((segment) => segment.kind === "travel").reduce((sum, segment) => sum + counted(segment), 0);
+  // Numer miejsca liczony tylko po odcinkach pracy (jazda nie ma numeru).
+  const placeNumbers = new Map<string, number>();
+  effective.forEach((segment) => {
+    if (segment.kind !== "travel") placeNumbers.set(segment.key, placeNumbers.size + 1);
+  });
+  const segmentLabel = (segment: SegmentState) =>
+    segment.kind === "travel" ? `Jazda ${segment.startTime}` : segment.place?.name?.trim() || `Miejsce ${placeNumbers.get(segment.key)}`;
+  const labelled = effective.map((segment) => ({ ...segment, label: segmentLabel(segment) }));
   const problem = segments.length ? checkDay(labelled) : null;
 
   async function handleSave() {
@@ -204,9 +243,9 @@ export function DayEditor({
       setError("Dodaj przynajmniej jedno miejsce.");
       return;
     }
-    const missing = segments.findIndex((segment) => !segment.place?.name?.trim() && !segment.place?.projectId);
-    if (missing !== -1) {
-      setError(`Miejsce ${missing + 1}: wpisz, gdzie byłeś.`);
+    const missing = segments.find((segment) => segment.kind !== "travel" && !segment.place?.name?.trim() && !segment.place?.projectId);
+    if (missing) {
+      setError(`Miejsce ${placeNumbers.get(missing.key)}: wpisz, gdzie byłeś.`);
       return;
     }
     if (problem) {
@@ -216,13 +255,18 @@ export function DayEditor({
 
     setSaving(true);
     try {
-      const projectIds = await resolvePlaces(
-        effective.map((segment) => segment.place!),
+      const workOnly = effective.filter((segment) => segment.kind !== "travel");
+      const resolved = await resolvePlaces(
+        workOnly.map((segment) => segment.place!),
         projects,
       );
-      const payload = effective.map((segment, index) => ({
+      const projectIdByKey = new Map(workOnly.map((segment, index) => [segment.key, resolved[index]]));
+      const projectIds = resolved;
+      const payload = effective.map((segment) => ({
         id: segment.id,
-        projectId: projectIds[index],
+        kind: segment.kind,
+        unpaid: segment.kind === "travel" && Boolean(segment.unpaid),
+        projectId: projectIdByKey.get(segment.key) ?? "",
         startTime: segment.startTime,
         endTime: segment.endTime,
         breakMinutes: segment.breakMinutes,
@@ -320,12 +364,20 @@ export function DayEditor({
                 return (
                   <div key={segment.key}>
                     {gap > 0 ? (
-                      <p className="mb-3 border-l-2 border-dashed border-line pl-3 text-sm text-steel">
-                        {formatDuration(gap)} między miejscami – nie liczy się do czasu pracy
-                      </p>
+                      <div className="mb-3 flex flex-wrap items-center gap-x-3 border-l-2 border-dashed border-line pl-3 text-sm text-steel">
+                        <span>{formatDuration(gap)} bez wpisu – nie liczy się</span>
+                        <button
+                          className="flex min-h-10 items-center gap-1 font-semibold text-ink underline decoration-line underline-offset-4"
+                          onClick={() => fillGapWithTravel(previous.endTime, segment.startTime)}
+                          type="button"
+                        >
+                          <Car className="h-4 w-4" />
+                          To była jazda
+                        </button>
+                      </div>
                     ) : null}
                     <SegmentCard
-                      index={index}
+                      index={(placeNumbers.get(segment.key) ?? index + 1) - 1}
                       projects={projects}
                       recentIds={recentIds}
                       removable={segments.length > 1 || existingIds.length > 0}
@@ -337,10 +389,16 @@ export function DayEditor({
                 );
               })}
             </div>
-            <Button className="mt-3" full size="lg" variant="secondary" onClick={addSegment}>
-              <Plus className="h-6 w-6" />
-              Dodaj kolejne miejsce
-            </Button>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button className="min-h-14 whitespace-nowrap px-3" variant="secondary" onClick={() => addSegment("work")}>
+                <Plus className="h-5 w-5 shrink-0" />
+                Dodaj miejsce
+              </Button>
+              <Button className="min-h-14 whitespace-nowrap px-3" variant="secondary" onClick={() => addSegment("travel")}>
+                <Car className="h-5 w-5 shrink-0" />
+                Dodaj jazdę
+              </Button>
+            </div>
           </section>
 
           <section>
@@ -404,7 +462,8 @@ export function DayEditor({
             <div className="panel flex items-center gap-3 border-ink p-3 shadow-[0_10px_30px_rgba(31,40,48,0.18)]">
               <div className="min-w-0 flex-1 pl-1">
                 <p className="text-sm text-steel">
-                  Razem{segments.length > 1 ? `, ${segments.length} miejsca` : ""}
+                  Razem
+                  {travelMinutes ? `, w tym jazda ${formatDuration(travelMinutes)}` : ""}
                   {totalBreak ? `, bez ${totalBreak} min przerwy` : ""}
                 </p>
                 <p className={classNames("font-cond text-[28px] font-bold leading-none", problem ? "text-stop" : "text-ink")}>

@@ -1,18 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Languages, Mic, MicOff, X } from "lucide-react";
+import { Car, ChevronDown, Languages, Mic, MicOff, X } from "lucide-react";
 import { PlaceInput } from "@/components/places/place-input";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { formatDuration, minutesBetween, netMinutes, timeToMinutes } from "@/lib/utils/date";
 import { classNames } from "@/lib/utils/text";
-import type { Place, Project } from "@/types/domain";
+import type { Place, Project, SegmentKind } from "@/types/domain";
 
 export type SegmentState = {
   key: string;
   id?: string;
+  kind: SegmentKind;
+  /** Tylko jazda: nie liczy się do godzin. */
+  unpaid?: boolean;
   place: Place | null;
   startTime: string;
   endTime: string;
@@ -49,6 +52,7 @@ export function SegmentCard({
   const gross = minutesBetween(segment.startTime, segment.endTime);
   const overnight = gross > 0 && timeToMinutes(segment.endTime) < timeToMinutes(segment.startTime);
   const net = netMinutes(segment.startTime, segment.endTime, segment.breakMinutes);
+  const travel = segment.kind === "travel";
 
   async function translate() {
     if (!segment.descriptionPL.trim()) return;
@@ -71,15 +75,22 @@ export function SegmentCard({
   }
 
   return (
-    <div className="panel p-4">
+    <div className={classNames("panel p-4", travel && "border-dashed border-steel/60 bg-well")}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-[15px] font-semibold text-steel">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink font-cond text-base text-white">{index + 1}</span>
-          {segment.fromTimer ? "z licznika" : "Miejsce"}
+          {travel ? (
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-vis text-white">
+              <Car className="h-4 w-4" />
+            </span>
+          ) : (
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink font-cond text-base text-white">{index + 1}</span>
+          )}
+          {travel ? <span className="text-[17px] text-ink">Jazda</span> : "Miejsce"}
+          {segment.fromTimer ? <span className="font-normal">· z licznika</span> : null}
         </p>
         {removable ? (
           <button
-            aria-label={`Usuń miejsce ${index + 1}`}
+            aria-label={travel ? "Usuń jazdę" : `Usuń miejsce ${index + 1}`}
             className="-mr-2 flex h-10 items-center gap-1 rounded-lg px-2 text-[15px] font-semibold text-steel hover:bg-well hover:text-stop"
             onClick={onRemove}
             type="button"
@@ -90,13 +101,34 @@ export function SegmentCard({
         ) : null}
       </div>
 
-      <PlaceInput
-        autoFocus={segment.autoFocus}
-        projects={projects}
-        recentIds={recentIds}
-        value={segment.place}
-        onChange={(place) => onChange({ place })}
-      />
+      {travel ? (
+        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Czy ta jazda liczy się do godzin">
+          <button
+            aria-pressed={!segment.unpaid}
+            className={classNames("chip min-h-11 px-2 text-[15px]", !segment.unpaid && "chip-on")}
+            onClick={() => onChange({ unpaid: false })}
+            type="button"
+          >
+            Liczy się
+          </button>
+          <button
+            aria-pressed={Boolean(segment.unpaid)}
+            className={classNames("chip min-h-11 px-2 text-[15px]", segment.unpaid && "chip-on")}
+            onClick={() => onChange({ unpaid: true })}
+            type="button"
+          >
+            Nie liczy się
+          </button>
+        </div>
+      ) : (
+        <PlaceInput
+          autoFocus={segment.autoFocus}
+          projects={projects}
+          recentIds={recentIds}
+          value={segment.place}
+          onChange={(place) => onChange({ place })}
+        />
+      )}
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Field label="Od">
@@ -107,18 +139,19 @@ export function SegmentCard({
         </Field>
       </div>
       <p className="mt-2 flex flex-wrap items-baseline gap-x-2 text-[15px] text-steel">
-        <span className={classNames("font-cond text-xl font-bold", gross > 0 ? "text-ink" : "text-stop")}>
-          {gross > 0 ? formatDuration(net) : "Sprawdź godziny"}
+        <span className={classNames("font-cond text-xl font-bold", gross <= 0 ? "text-stop" : segment.unpaid ? "text-steel line-through decoration-2" : "text-ink")}>
+          {gross > 0 ? formatDuration(segment.unpaid ? gross : net) : "Sprawdź godziny"}
         </span>
-        {segment.breakMinutes > 0 && gross > 0 ? <span>po odjęciu {segment.breakMinutes} min przerwy</span> : null}
+        {segment.unpaid && gross > 0 ? <span>nie liczy się do godzin</span> : null}
+        {!segment.unpaid && segment.breakMinutes > 0 && gross > 0 ? <span>po odjęciu {segment.breakMinutes} min przerwy</span> : null}
         {overnight ? <span className="text-vis-dark">przez północ</span> : null}
       </p>
 
       <div className="mt-3">
         <Textarea
-          aria-label={`Co było robione – miejsce ${index + 1}`}
+          aria-label={travel ? "Opis jazdy" : `Co było robione – miejsce ${index + 1}`}
           className="min-h-[52px]"
-          placeholder="Co było robione? (można pominąć)"
+          placeholder={travel ? "Skąd – dokąd? (można pominąć)" : "Co było robione? (można pominąć)"}
           rows={1}
           value={segment.descriptionPL}
           onChange={(event) => onChange({ descriptionPL: event.target.value })}

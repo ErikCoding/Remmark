@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Download, FileSpreadsheet, Printer } from "lucide-react";
+import { Check, ChevronDown, Download, FileSpreadsheet, Languages, Printer, RotateCw } from "lucide-react";
 import { AppShell } from "@/components/app/app-shell";
 import { PageHeader } from "@/components/app/page-header";
 import { BarChart, type Bar } from "@/components/stats/bar-chart";
@@ -13,8 +13,19 @@ import { SkeletonList } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
 import { useProjects } from "@/hooks/use-projects";
 import { useRangeLogs } from "@/hooks/use-range-logs";
-import { logBreak } from "@/lib/services/logs";
-import { exportLogsToCsv, exportLogsToPdf } from "@/lib/services/reports";
+import { TRAVEL_GROUP, logBreak, logGroupId, logPlaceName, paidLogs } from "@/lib/services/logs";
+import {
+  DEFAULT_PDF_OPTIONS,
+  type PdfOptions,
+  describeLog,
+  exportLogsToCsv,
+  exportLogsToPdf,
+  loadPdfOptions,
+  reportPlaceName,
+  savePdfOptions,
+  textsToTranslate,
+} from "@/lib/services/reports";
+import { clearTranslationCache, translateToDutch } from "@/lib/services/translate";
 import { computeStats, monthlyTotals } from "@/lib/services/stats";
 import {
   addDays,
@@ -36,7 +47,7 @@ import {
   weekdayShort,
 } from "@/lib/utils/date";
 import { classNames } from "@/lib/utils/text";
-import type { DateRange, ReportLanguage, WorkLog } from "@/types/domain";
+import type { DateRange, ReportLanguage } from "@/types/domain";
 
 type Preset = "tydzien" | "poprz-tydzien" | "miesiac" | "poprz-miesiac" | "rok" | "wszystko" | "wlasny";
 
@@ -92,13 +103,29 @@ function Reports() {
   const [language, setLanguage] = useState<ReportLanguage>("pl");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [options, setOptions] = useState<PdfOptions>(DEFAULT_PDF_OPTIONS);
+  const [showOptions, setShowOptions] = useState(false);
+  const [nlMap, setNlMap] = useState<Map<string, string>>(new Map());
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+  const [translateRun, setTranslateRun] = useState(0);
+
+  useEffect(() => setOptions(loadPdfOptions()), []);
+
+  function setOption(key: keyof PdfOptions, value: boolean) {
+    setOptions((current) => {
+      const next = { ...current, [key]: value };
+      savePdfOptions(next);
+      return next;
+    });
+  }
 
   const range = presetRange(preset, custom);
   const { logs: rangeLogs, loading } = useRangeLogs(user?.uid, range);
   const logs = useMemo(
     () =>
-      rangeLogs
-        .filter((log) => projectId === "all" || log.projectId === projectId)
+      paidLogs(rangeLogs)
+        .filter((log) => projectId === "all" || logGroupId(log) === projectId)
         .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.startTime.localeCompare(b.startTime)),
     [projectId, rangeLogs],
   );
@@ -132,15 +159,57 @@ function Reports() {
         title: `${monthLabel(month.monthKey)}: ${formatDuration(month.minutes)}`,
       }));
 
+  // Raport NL: przetłumacz nazwy budów, opisy i (jeśli włączone) notatki.
+  const toTranslate = useMemo(
+    () => (language === "nl" ? textsToTranslate(logs, projects, { ...options, descriptions: true }) : []),
+    [language, logs, options, projects],
+  );
+  const translateKey = toTranslate.join("\u0001");
+  useEffect(() => {
+    if (language !== "nl" || toTranslate.length === 0) {
+      setTranslateError(null);
+      return;
+    }
+    let cancelled = false;
+    setTranslating(true);
+    setTranslateError(null);
+    translateToDutch(toTranslate)
+      .then((map) => {
+        if (!cancelled) setNlMap((current) => new Map([...current, ...map]));
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setTranslateError(error instanceof Error ? error.message : "Tłumaczenie nie zadziałało.");
+      })
+      .finally(() => {
+        if (!cancelled) setTranslating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, translateKey, translateRun]);
+
+  const tr = (text: string) => (language === "nl" ? nlMap.get(text.trim()) ?? text : text);
+  const placeLabel = (log: (typeof logs)[number]) => (language === "nl" ? reportPlaceName(log, projectById, language, tr) : logPlaceName(log, projectById));
+  const missingTranslations = language === "nl" ? toTranslate.filter((text) => !nlMap.has(text)).length : 0;
+
   const exportInput = {
     logs,
     projects,
     range: shownRange,
     language,
     workerName: profile?.name || user?.email || "",
+    options,
+    tr,
   };
 
   async function downloadPdf() {
+    if (
+      missingTranslations > 0 &&
+      !window.confirm("Część tekstów nie jest przetłumaczona i zostanie po polsku. Pobrać PDF mimo to?")
+    ) {
+      return;
+    }
     setExporting(true);
     setExportError(null);
     try {
@@ -152,7 +221,9 @@ function Reports() {
     }
   }
 
-  const selectedProject = projectId !== "all" ? projectById.get(projectId) : undefined;
+  const nothingSelected = !options.summary && !options.bySite && !options.details;
+
+  const selectedName = projectId === TRAVEL_GROUP ? "Jazda" : projectId !== "all" ? projectById.get(projectId)?.name : undefined;
 
   return (
     <>
@@ -182,6 +253,7 @@ function Reports() {
 
         <Select aria-label="Budowa" className="mt-3" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
           <option value="all">Wszystkie budowy</option>
+          <option value={TRAVEL_GROUP}>Tylko jazda</option>
           {projects.map((project) => (
             <option key={project.id} value={project.id}>
               {project.name}
@@ -196,7 +268,7 @@ function Reports() {
         <p>
           {profile?.name ? `${profile.name} · ` : ""}
           {formatRange(shownRange)}
-          {selectedProject ? ` · ${selectedProject.name}` : ""}
+          {selectedName ? ` · ${selectedName}` : ""}
         </p>
       </div>
 
@@ -209,12 +281,15 @@ function Reports() {
           <section className="panel print-flat p-4 sm:p-5">
             <p className="text-[15px] text-steel">
               {formatRange(shownRange)}
-              {selectedProject ? ` · ${selectedProject.name}` : ""}
+              {selectedName ? ` · ${selectedName}` : ""}
             </p>
             <div className="mt-1 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="font-cond text-[64px] font-bold leading-[0.95] text-ink">{formatHoursDecimal(stats.totalMinutes)} h</p>
-                <p className="text-[15px] text-steel">{formatDuration(stats.totalMinutes)} pracy bez przerw</p>
+                <p className="text-[15px] text-steel">
+                  {formatDuration(stats.totalMinutes)} pracy bez przerw
+                  {stats.travelMinutes && projectId === "all" ? `, w tym jazda ${formatDuration(stats.travelMinutes)}` : ""}
+                </p>
               </div>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[15px] sm:min-w-[300px]">
                 <Stat label="Dni pracy" value={String(stats.daysWorked)} />
@@ -270,7 +345,7 @@ function Reports() {
                 <p className="mb-3 mt-0.5 text-[15px] text-steel">
                   {logs.length} {logs.length === 1 ? "wpis" : logs.length < 5 ? "wpisy" : "wpisów"} z wybranego okresu.
                 </p>
-                <div className="mb-3 flex items-center gap-2">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span className="text-[15px] text-steel">Język raportu:</span>
                   {(["pl", "nl"] as const).map((value) => (
                     <button
@@ -283,12 +358,103 @@ function Reports() {
                     </button>
                   ))}
                 </div>
+                {language === "nl" ? (
+                  <div className="mb-3 text-[15px]" aria-live="polite">
+                    {translating ? (
+                      <p className="flex items-center gap-2 text-steel">
+                        <Languages className="h-4 w-4 animate-pulse" />
+                        Tłumaczę nazwy budów i opisy na niderlandzki…
+                      </p>
+                    ) : translateError ? (
+                      <div className="rounded-xl bg-stop-soft px-3 py-2 text-stop">
+                        <p className="font-semibold">Tłumaczenie nie zadziałało: {translateError}</p>
+                        <button
+                          className="mt-1 flex min-h-10 items-center gap-1.5 font-semibold underline underline-offset-4"
+                          onClick={() => setTranslateRun((value) => value + 1)}
+                          type="button"
+                        >
+                          <RotateCw className="h-4 w-4" />
+                          Spróbuj ponownie
+                        </button>
+                      </div>
+                    ) : toTranslate.length ? (
+                      <p className="flex flex-wrap items-center gap-x-3 text-go">
+                        <span className="flex items-center gap-1.5 font-semibold">
+                          <Check className="h-4 w-4" />
+                          Nazwy budów i opisy przetłumaczone
+                        </span>
+                        <button
+                          className="min-h-10 text-steel underline underline-offset-4"
+                          onClick={() => {
+                            clearTranslationCache();
+                            setNlMap(new Map());
+                            setTranslateRun((value) => value + 1);
+                          }}
+                          type="button"
+                        >
+                          Przetłumacz od nowa
+                        </button>
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="mb-3 rounded-xl border border-line">
+                  <button
+                    aria-expanded={showOptions}
+                    className="flex min-h-12 w-full items-center justify-between gap-2 px-3 text-left"
+                    onClick={() => setShowOptions((value) => !value)}
+                    type="button"
+                  >
+                    <span>
+                      <span className="block text-[15px] font-semibold text-ink">Co ma być w raporcie</span>
+                      <span className="block text-sm text-steel">{optionsSummary(options)}</span>
+                    </span>
+                    <ChevronDown className={classNames("h-5 w-5 shrink-0 text-steel transition-transform", showOptions && "rotate-180")} />
+                  </button>
+                  {showOptions ? (
+                    <div className="space-y-4 border-t border-line p-3">
+                      <OptionGroup title="Części raportu">
+                        <OptionToggle checked={options.summary} label="Podsumowanie" hint="Godziny, dni, przerwy na górze" onChange={(v) => setOption("summary", v)} />
+                        <OptionToggle checked={options.bySite} label="Podział na budowy" onChange={(v) => setOption("bySite", v)} />
+                        <OptionToggle checked={options.details} label="Lista wpisów" hint="Dzień po dniu" onChange={(v) => setOption("details", v)} />
+                        <OptionToggle checked={options.signature} label="Miejsce na podpisy" onChange={(v) => setOption("signature", v)} />
+                      </OptionGroup>
+                      <OptionGroup title="W liście wpisów">
+                        <OptionToggle checked={options.times} disabled={!options.details} label="Godziny od–do" onChange={(v) => setOption("times", v)} />
+                        <OptionToggle checked={options.breaks} disabled={!options.details} label="Przerwy" onChange={(v) => setOption("breaks", v)} />
+                        <OptionToggle checked={options.descriptions} disabled={!options.details} label="Opis pracy" onChange={(v) => setOption("descriptions", v)} />
+                        <OptionToggle checked={options.notes} disabled={!options.details} label="Notatki" hint="Zwykle tylko dla siebie" onChange={(v) => setOption("notes", v)} />
+                        <OptionToggle checked={options.dailyTotals} disabled={!options.details} label="Suma każdego dnia" hint="Gdy w dniu było kilka miejsc" onChange={(v) => setOption("dailyTotals", v)} />
+                      </OptionGroup>
+                      <OptionGroup title="Inne">
+                        <OptionToggle checked={options.travel} label="Jazda" hint="Wyłączona – jazda nie wlicza się do sumy" onChange={(v) => setOption("travel", v)} />
+                        <OptionToggle checked={options.clients} label="Klienci przy budowach" onChange={(v) => setOption("clients", v)} />
+                      </OptionGroup>
+                      <button
+                        className="min-h-10 text-[15px] font-semibold text-steel underline underline-offset-4"
+                        onClick={() => {
+                          setOptions(DEFAULT_PDF_OPTIONS);
+                          savePdfOptions(DEFAULT_PDF_OPTIONS);
+                        }}
+                        type="button"
+                      >
+                        Przywróć domyślne
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                {nothingSelected ? <p className="mb-2 text-[15px] font-semibold text-stop">Zaznacz przynajmniej jedną część raportu.</p> : null}
+                {!options.travel && stats.travelMinutes ? (
+                  <p className="mb-2 text-[15px] text-steel">Jazda ({formatDuration(stats.travelMinutes)}) nie trafi do raportu ani do sumy.</p>
+                ) : null}
+
                 <div className="grid gap-2 sm:grid-cols-3">
-                  <Button disabled={exporting} size="lg" variant="vis" onClick={downloadPdf}>
+                  <Button disabled={exporting || nothingSelected || translating} size="lg" variant="vis" onClick={downloadPdf}>
                     <Download className="h-5 w-5" />
-                    {exporting ? "Tworzę PDF…" : "Pobierz PDF"}
+                    {exporting ? "Tworzę PDF…" : translating ? "Tłumaczę…" : "Pobierz PDF"}
                   </Button>
-                  <Button size="lg" variant="secondary" onClick={() => exportLogsToCsv(exportInput)}>
+                  <Button disabled={translating} size="lg" variant="secondary" onClick={() => exportLogsToCsv(exportInput)}>
                     <FileSpreadsheet className="h-5 w-5" />
                     Do Excela
                   </Button>
@@ -310,12 +476,12 @@ function Reports() {
                         <p className="text-sm text-steel">{weekdayShort(log.dateKey)}</p>
                       </div>
                       <div className="min-w-0 flex-1">
-                        {projectId === "all" ? <p className="truncate font-semibold text-ink">{projectById.get(log.projectId)?.name ?? "–"}</p> : null}
+                        {projectId === "all" ? <p className="truncate font-semibold text-ink">{placeLabel(log)}</p> : null}
                         <p className="text-sm text-steel">
                           {log.startTime}–{log.endTime}
                           {logBreak(log) ? `, przerwa ${logBreak(log)} min` : ""}
                         </p>
-                        {describeLog(log, language) ? <p className="mt-0.5 text-sm leading-snug text-ink">{describeLog(log, language)}</p> : null}
+                        {describeLog(log, language, tr) ? <p className="mt-0.5 text-sm leading-snug text-ink">{describeLog(log, language, tr)}</p> : null}
                       </div>
                       <p className="shrink-0 font-cond text-lg font-bold text-ink">{formatHoursDecimal(log.durationMinutes)} h</p>
                     </li>
@@ -343,14 +509,14 @@ function Reports() {
                           <td className="whitespace-nowrap px-4 py-2.5 sm:pl-5">
                             {weekdayShort(log.dateKey)} {formatKey(log.dateKey).slice(0, 5)}
                           </td>
-                          {projectId === "all" ? <td className="px-2 py-2.5 font-semibold">{projectById.get(log.projectId)?.name ?? "–"}</td> : null}
+                          {projectId === "all" ? <td className="px-2 py-2.5 font-semibold">{placeLabel(log)}</td> : null}
                           <td className="whitespace-nowrap px-2 py-2.5">
                             {log.startTime}–{log.endTime}
                           </td>
                           <td className="whitespace-nowrap px-2 py-2.5 text-right text-steel">{logBreak(log) ? `${logBreak(log)} min` : "–"}</td>
                           <td className="whitespace-nowrap px-2 py-2.5 text-right font-semibold">{formatHoursDecimal(log.durationMinutes)} h</td>
                           <td className="px-4 py-2.5 text-steel">
-                            {describeLog(log, language) || "–"}
+                            {describeLog(log, language, tr) || "–"}
                           </td>
                         </tr>
                       ))}
@@ -373,10 +539,6 @@ function Reports() {
       )}
     </>
   );
-}
-
-function describeLog(log: WorkLog, language: ReportLanguage) {
-  return language === "nl" ? log.descriptionNL || log.descriptionPL : log.descriptionPL;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -406,4 +568,54 @@ function fillMonths(range: DateRange, totals: Array<{ monthKey: string; minutes:
     guard += 1;
   }
   return months.slice(-24);
+}
+
+function optionsSummary(options: PdfOptions): string {
+  const parts = [
+    options.summary && "podsumowanie",
+    options.bySite && "budowy",
+    options.details && "lista wpisów",
+    options.signature && "podpisy",
+  ].filter(Boolean);
+  const extras = [!options.travel && "bez jazdy", options.notes && "z notatkami"].filter(Boolean);
+  return [parts.join(", ") || "nic nie zaznaczono", ...extras].join(" · ");
+}
+
+function OptionGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset>
+      <legend className="mb-1 text-sm font-semibold text-steel">{title}</legend>
+      <div className="grid gap-1 sm:grid-cols-2">{children}</div>
+    </fieldset>
+  );
+}
+
+function OptionToggle({
+  checked,
+  label,
+  hint,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  hint?: string;
+  disabled?: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className={classNames("flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-well", disabled && "cursor-not-allowed opacity-45")}>
+      <input
+        checked={checked}
+        className="h-5 w-5 shrink-0 accent-[#1F2830]"
+        disabled={disabled}
+        type="checkbox"
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span className="min-w-0">
+        <span className="block text-[15px] font-semibold leading-tight text-ink">{label}</span>
+        {hint ? <span className="block text-sm leading-tight text-steel"> {hint}</span> : null}
+      </span>
+    </label>
+  );
 }

@@ -24,9 +24,17 @@ export interface Project {
   updatedAt?: Timestamp;
 }
 
+/** Rodzaj odcinka dnia: praca na miejscu albo jazda (liczona do czasu pracy). */
+export type SegmentKind = "work" | "travel";
+
 export interface WorkLog {
   id: string;
+  /** Dla jazdy puste. */
   projectId: string;
+  /** Brak = praca (starsze wpisy). */
+  kind?: SegmentKind;
+  /** Jazda, która nie liczy się do godzin (np. pierwszy dojazd). Czas pracy = 0. */
+  unpaid?: boolean;
   userId: string;
   date: Timestamp;
   dateKey: string;
@@ -52,6 +60,9 @@ export interface Place {
 
 /** Odcinek trwającego dnia pracy: od kiedy jest się w danym miejscu. */
 export interface TimerSegment {
+  kind?: SegmentKind;
+  /** Tylko dla jazdy: nie liczy się do godzin. */
+  unpaid?: boolean;
   place?: Place | null;
   startMs: number;
   breakMinutes: number;

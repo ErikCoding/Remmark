@@ -1,4 +1,4 @@
-import { logBreak } from "@/lib/services/logs";
+import { TRAVEL_GROUP, isTravel, logBreak, logGroupId, logPlaceName, paidLogs } from "@/lib/services/logs";
 import { daysInRange, timeToMinutes } from "@/lib/utils/date";
 import type { DateRange, Project, WorkLog } from "@/types/domain";
 
@@ -8,6 +8,8 @@ export type MonthTotal = { monthKey: string; minutes: number; days: number };
 
 export type PeriodStats = {
   totalMinutes: number;
+  /** Czas jazdy (zawiera się w totalMinutes). */
+  travelMinutes: number;
   totalBreakMinutes: number;
   entries: number;
   daysWorked: number;
@@ -26,15 +28,18 @@ const minutesToTime = (value: number) => {
 };
 
 export function computeStats(logs: WorkLog[], projects: Project[], range?: DateRange): PeriodStats {
+  logs = paidLogs(logs);
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const dayMap = new Map<string, DayTotal>();
   const projectMap = new Map<string, ProjectTotal & { dayKeys: Set<string> }>();
   let totalMinutes = 0;
   let totalBreakMinutes = 0;
+  let travelMinutes = 0;
 
   logs.forEach((log) => {
     totalMinutes += log.durationMinutes;
     totalBreakMinutes += logBreak(log);
+    if (isTravel(log)) travelMinutes += log.durationMinutes;
 
     const day = dayMap.get(log.dateKey) ?? { dateKey: log.dateKey, minutes: 0, breakMinutes: 0, entries: 0 };
     day.minutes += log.durationMinutes;
@@ -42,11 +47,12 @@ export function computeStats(logs: WorkLog[], projects: Project[], range?: DateR
     day.entries += 1;
     dayMap.set(log.dateKey, day);
 
+    const groupId = logGroupId(log);
     const project = projectById.get(log.projectId);
-    const current = projectMap.get(log.projectId) ?? {
-      projectId: log.projectId,
-      name: project?.name ?? "Usunięta budowa",
-      client: project?.client ?? "",
+    const current = projectMap.get(groupId) ?? {
+      projectId: groupId,
+      name: logPlaceName(log, projectById),
+      client: isTravel(log) ? "" : project?.client ?? "",
       minutes: 0,
       days: 0,
       entries: 0,
@@ -56,7 +62,7 @@ export function computeStats(logs: WorkLog[], projects: Project[], range?: DateR
     current.entries += 1;
     current.dayKeys.add(log.dateKey);
     current.days = current.dayKeys.size;
-    projectMap.set(log.projectId, current);
+    projectMap.set(groupId, current);
   });
 
   // Średni start = najwcześniejszy start dnia, średni koniec = najpóźniejszy koniec dnia.
@@ -84,6 +90,7 @@ export function computeStats(logs: WorkLog[], projects: Project[], range?: DateR
 
   return {
     totalMinutes,
+    travelMinutes,
     totalBreakMinutes,
     entries: logs.length,
     daysWorked: worked.length,
@@ -91,7 +98,7 @@ export function computeStats(logs: WorkLog[], projects: Project[], range?: DateR
     longestDay: worked.reduce<DayTotal | undefined>((best, day) => (!best || day.minutes > best.minutes ? day : best), undefined),
     avgStart: firstStarts.length ? minutesToTime(average(firstStarts)) : undefined,
     avgEnd: lastEnds.length ? minutesToTime(average(lastEnds)) : undefined,
-    projectCount: projectMap.size,
+    projectCount: Array.from(projectMap.keys()).filter((id) => id !== TRAVEL_GROUP).length,
     byProject: Array.from(projectMap.values())
       .map(({ dayKeys: _dayKeys, ...rest }) => rest)
       .sort((a, b) => b.minutes - a.minutes),
@@ -100,6 +107,7 @@ export function computeStats(logs: WorkLog[], projects: Project[], range?: DateR
 }
 
 export function monthlyTotals(logs: WorkLog[]): MonthTotal[] {
+  logs = paidLogs(logs);
   const map = new Map<string, { minutes: number; days: Set<string> }>();
   logs.forEach((log) => {
     const monthKey = `${log.dateKey.slice(0, 7)}-01`;
